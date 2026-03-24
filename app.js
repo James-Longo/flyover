@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentRegion = localStorage.getItem('ebird_region') || "US-ME-009"; 
     let lastLoadedDate = new Date();
     let isLoadingMore = false;
+    let scrollObserver = null;
 
     // Initialize state
     const savedKey = localStorage.getItem('ebird_api_key');
@@ -217,7 +218,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setupLazyMaps();
     }
 
-    let scrollObserver = null;
     function setupInfiniteScroll() {
         const sentinel = document.getElementById('load-more-sentinel');
         if (!sentinel) return;
