@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="map-container lazy-map" id="map-${list.subId}" 
                          data-lat="${list.loc.latitude}" 
                          data-lng="${list.loc.longitude}">
-                        <div class="map-unlock-overlay">Tap to Explore</div>
+                        <div class="map-unlock-overlay"></div>
                     </div>
                 </div>
                 <div class="card-footer">
