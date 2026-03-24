@@ -421,7 +421,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const results = await Promise.all(fetchPromises);
-            uniqueAssets = Array.from(new Map(results.flat().map(a => [a.catalogId, a])).values());
+            uniqueAssets = Array.from(new Map(results.flat().map(a => [a.catalogId, a])).values()).map(a => ({
+                ...a,
+                source: 'ebird'
+            }));
         }
 
         if (uniqueAssets.length > 0) {
@@ -489,22 +492,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         lightboxContent.innerHTML = assets.map(asset => {
-            const suffix = asset.mediaType === 'Audio' ? 'poster' : '1800';
-            const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/${suffix}`;
-            const embedUrl = `https://www.macaulaylibrary.org/asset/${asset.catalogId}/embed`;
+            const isInat = asset.source === 'inaturalist';
+            
+            // Determine URLs
+            let thumbUrl = '';
+            let embedUrl = '';
+            let sourceUrl = '';
+            let sourceLabel = 'Macaulay Library';
+
+            if (isInat) {
+                thumbUrl = asset.url; // Already normalized to 'large' in api.js
+                sourceUrl = `https://www.inaturalist.org/observations/${asset.catalogId}`;
+                sourceLabel = 'iNaturalist';
+                // iNat observations usually just display photos/audio directly, not needing a third-party embed usually
+                // but if we support iNat audio, we use the raw asset.url
+                embedUrl = asset.url;
+            } else {
+                const suffix = asset.mediaType === 'Audio' ? 'poster' : '1800';
+                thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/${suffix}`;
+                embedUrl = `https://www.macaulaylibrary.org/asset/${asset.catalogId}/embed`;
+                sourceUrl = `https://macaulaylibrary.org/asset/${asset.catalogId}`;
+                sourceLabel = 'Macaulay Library';
+            }
             
             // Cleanup Label
             const typeLabel = asset.mediaType === 'Photo' ? '' : ` (${asset.mediaType})`;
             const credit = `${asset.commonName}${typeLabel} © ${asset.userDisplayName || 'Birder'}`;
-            const mlUrl = `https://macaulaylibrary.org/asset/${asset.catalogId}`;
             
             let mediaContent = '';
-            if (asset.mediaType === 'Video' || asset.mediaType === 'Audio') {
-                // Use data-src for Lazy Loading/Stopping
+            if (asset.mediaType === 'Video' || (asset.mediaType === 'Audio' && !isInat)) {
+                // Use official embed for eBird/Macaulay
                 mediaContent = `
                     <div class="lightbox-embed-container">
                         <iframe data-src="${embedUrl}" class="lightbox-embed" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
                     </div>`;
+            } else if (asset.mediaType === 'Audio' && isInat) {
+                // Use native audio player for iNaturalist sounds
+                mediaContent = `<div class="lightbox-embed-container"><audio controls src="${asset.url}" style="width: 80%;"></audio></div>`;
             } else {
                 mediaContent = `<img src="${thumbUrl}" alt="${asset.commonName}">`;
             }
@@ -515,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="lightbox-caption">
                         <p>${credit}</p>
                         <p style="font-size: 0.75rem; margin-top: 5px;">
-                            <a href="${mlUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">Explore on Macaulay Library ↗</a>
+                            <a href="${sourceUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">View on ${sourceLabel} ↗</a>
                         </p>
                     </div>
                 </div>

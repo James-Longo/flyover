@@ -228,6 +228,7 @@ class InaturalistService {
             catalogId: p.photo.id,
             url: p.photo.url.replace('square', 'large'),
             mediaType: 'Photo',
+            source: 'inaturalist',
             commonName: obs.taxon?.preferred_common_name || obs.taxon?.name || "Unknown Organism",
             userDisplayName: obs.user.login
         }));
@@ -236,6 +237,7 @@ class InaturalistService {
             catalogId: s.id,
             url: s.file_url,
             mediaType: 'Audio',
+            source: 'inaturalist',
             commonName: obs.taxon?.preferred_common_name || obs.taxon?.name || "Unknown Organism",
             userDisplayName: obs.user.login
         }));
