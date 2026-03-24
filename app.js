@@ -406,11 +406,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (assets.length > 0) {
                 // Use the first photo as the main feature
                 const photo = assets.find(a => a.mediaType === 'Photo') || assets[0];
-                const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${photo.catalogId}/900`;
+                const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${photo.catalogId}/1200`;
+                
+                // Macaulay Library requires specific credit format:
+                // "Species © Contributor; Cornell Lab | Macaulay Library"
+                const creditText = `${photo.commonName} © ${photo.userDisplayName || 'Birder'}; Cornell Lab | Macaulay Library`;
                 
                 mediaEl.innerHTML = `
                     <div class="photo-wrapper">
-                        <img src="${thumbUrl}" alt="Bird photo" loading="lazy">
+                        <img src="${thumbUrl}" alt="${photo.commonName}" loading="lazy">
+                        <div class="photo-credit">${creditText}</div>
                         ${assets.length > 1 ? `<span class="photo-count">+${assets.length - 1} more</span>` : ''}
                     </div>
                 `;
