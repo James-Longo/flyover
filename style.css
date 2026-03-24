@@ -316,28 +316,31 @@ input:focus {
 
 .no-media .card-content-split {
     border-top: 1px solid #eee;
+    flex-direction: row;
+    align-items: stretch;
+}
+
+.no-media .species-list {
+    flex: 1;
+    border-bottom: none;
+    padding: 1rem 1.5rem;
+    min-width: 0; /* Prevents overflow */
+}
+
+.no-media .map-container {
+    width: 140px; /* Slightly smaller for global mobile compat */
+    height: auto;
+    min-height: 140px;
+    flex-shrink: 0;
+    margin: 0;
+    border-left: 1px solid #eee;
+    border-top: none;
 }
 
 @media (min-width: 600px) {
-    .no-media .card-content-split {
-        flex-direction: row;
-        align-items: stretch;
-    }
-
-    .no-media .species-list {
-        flex: 1;
-        border-bottom: none;
-        padding: 1rem 1.5rem;
-    }
-
     .no-media .map-container {
         width: 180px;
-        height: auto; /* Take full height of species list */
         min-height: 180px;
-        flex-shrink: 0;
-        margin: 0;
-        border-left: 1px solid #eee;
-        border-top: none;
     }
 }
 
