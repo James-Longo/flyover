@@ -474,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lightboxContent.innerHTML = assets.map(asset => {
             const suffix = asset.mediaType === 'Audio' ? 'poster' : '1800';
             const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/${suffix}`;
-            const embedUrl = `https://media.ebird.org/api/v1/asset/${asset.catalogId}/embed`;
+            const embedUrl = `https://macaulaylibrary.org/asset/${asset.catalogId}/embed`;
             
             // Cleanup Label
             const typeLabel = asset.mediaType === 'Photo' ? '' : ` (${asset.mediaType})`;
