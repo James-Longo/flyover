@@ -142,11 +142,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Group by location and exact time (heuristic for shared checklists)
             const key = `${list.locId}_${list.isoObsDate}_${list.numSpecies}`;
             if (!groups.has(key)) {
-                groups.set(key, { ...list, contributors: [list.userDisplayName] });
+                groups.set(key, { ...list, subIds: [list.subId], contributors: [list.userDisplayName] });
             } else {
                 const group = groups.get(key);
                 if (!group.contributors.includes(list.userDisplayName)) {
                     group.contributors.push(list.userDisplayName);
+                    group.subIds.push(list.subId);
                 }
             }
         });
@@ -217,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <!-- Media/Photo Container -->
-                <div class="card-media" id="media-${list.subId}">
+                <div class="card-media" id="media-${list.subIds.join('_')}" data-subids='${JSON.stringify(list.subIds)}'>
                     <div class="photo-placeholder">Checking for birding photos...</div>
                 </div>
                 
@@ -315,16 +316,16 @@ document.addEventListener('DOMContentLoaded', () => {
             entries.forEach(async entry => {
                 if (entry.isIntersecting) {
                     const el = entry.target;
-                    const subId = el.id.split('-').slice(1).join('-'); // Handle media-S123 etc.
+                    const idPart = el.id.split('-').slice(1).join('-'); // Handle S123 or S123_S456
                     
                     if (el.classList.contains('lazy-map')) {
                         const lat = parseFloat(el.getAttribute('data-lat'));
                         const lng = parseFloat(el.getAttribute('data-lng'));
-                        renderMap(subId, lat, lng);
+                        renderMap(idPart, lat, lng);
                     } else if (el.id.startsWith('species-')) {
-                        await fetchAndRenderSpecies(subId);
+                        await fetchAndRenderSpecies(idPart);
                     } else if (el.id.startsWith('media-')) {
-                        await fetchAndRenderMedia(subId);
+                        await fetchAndRenderMedia(el.id);
                     }
 
                     contentObserver.unobserve(el);
@@ -405,19 +406,31 @@ function renderMap(subId, lat, lng) {
         }
     }
 
-    async function fetchAndRenderMedia(subId) {
-        const mediaEl = document.getElementById(`media-${subId}`);
+    async function fetchAndRenderMedia(elementId) {
+        const mediaEl = document.getElementById(elementId);
+        if (!mediaEl) return;
+        
+        const subIds = JSON.parse(mediaEl.getAttribute('data-subids') || "[]");
+        let allAssets = [];
+
         try {
-            // Macaulay Library API for checklist media
-            const resp = await fetch(`https://search.macaulaylibrary.org/api/v1/search?subId=${subId}`);
-            if (!resp.ok) throw new Error("API Limit or Network Error");
+            // Fetch media for every subId in the group (Multi-subId Handshake)
+            const fetchPromises = subIds.map(async (id) => {
+                const resp = await fetch(`https://search.macaulaylibrary.org/api/v1/search?subId=${id}`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    return (data.results?.content || []).filter(a => a.mediaType === 'Photo');
+                }
+                return [];
+            });
+
+            const results = await Promise.all(fetchPromises);
+            allAssets = results.flat();
             
-            const data = await resp.json();
-            const assets = (data.results?.content || []).filter(a => a.mediaType === 'Photo');
-            
-            if (assets.length > 0) {
-                // Show up to 4 photos in a grid layout
-                const displayPhotos = assets.slice(0, 4);
+            if (allAssets.length > 0) {
+                // Remove duplicates (e.g. if companions shared photos)
+                const uniqueAssets = Array.from(new Map(allAssets.map(a => [a.catalogId, a])).values());
+                const displayPhotos = uniqueAssets.slice(0, 4);
                 
                 const photoHtml = displayPhotos.map(photo => {
                     const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${photo.catalogId}/1200`;
@@ -431,17 +444,17 @@ function renderMap(subId, lat, lng) {
                 }).join('');
 
                 mediaEl.innerHTML = `
-                    <div class="photo-grid ${assets.length > 1 ? 'is-gallery' : ''} count-${displayPhotos.length}">
+                    <div class="photo-grid ${uniqueAssets.length > 1 ? 'is-gallery' : ''} count-${displayPhotos.length}">
                         ${photoHtml}
-                        ${assets.length > 4 ? `<span class="photo-more">+${assets.length - 4} others</span>` : ''}
+                        ${uniqueAssets.length > 4 ? `<span class="photo-more">+${uniqueAssets.length - 4} others</span>` : ''}
                     </div>
                 `;
                 mediaEl.style.display = 'block';
             } else {
-                mediaEl.style.display = 'none'; // Hide if no photos exist
+                mediaEl.style.display = 'none';
             }
         } catch (error) {
-            console.warn("Media fetch failed for subId:", subId, error.message);
+            console.warn("Media fetch failed for group:", subIds, error.message);
             mediaEl.style.display = 'none';
         }
     }
