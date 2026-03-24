@@ -129,12 +129,15 @@ document.addEventListener('DOMContentLoaded', () => {
             ]);
 
             // Normalize eBird sightings to match unified format
-            const normalizedEbird = groupChecklists(ebirdData).map(list => ({
-                source: 'ebird',
-                id: list.subId,
-                date: new Date(list.obsDt),
-                ...list
-            }));
+            const normalizedEbird = groupChecklists(ebirdData).map(list => {
+                const dateStr = list.obsTime ? `${list.obsDt} ${list.obsTime}` : list.obsDt;
+                return {
+                    source: 'ebird',
+                    id: list.subId,
+                    date: new Date(dateStr.replace(/-/g, "/")),
+                    ...list
+                };
+            });
 
             // Combine and Sort by Date
             const combinedFeed = [...normalizedEbird, ...inatData].sort((a, b) => b.date - a.date);
@@ -210,10 +213,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 authorText = `${mainAuthor} with ${authors[1]} and ${authors.length - 2} others`;
             }
 
-            const dateStr = list.date.toLocaleDateString([], {
+            const dateStr = list.date.toLocaleString([], {
                 month: 'short',
                 day: 'numeric',
-                hour: '2-digit',
+                hour: 'numeric',
                 minute: '2-digit'
             });
 
@@ -303,12 +306,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             console.log(`Loading sightings for: ${lastLoadedDate.toDateString()}`);
             const rawChecklists = await window.ebird.getRecentChecklists(currentRegion, lastLoadedDate);
-            const normalizedEbird = groupChecklists(rawChecklists).map(list => ({
-                source: 'ebird',
-                id: list.subId,
-                date: new Date(list.obsDt),
-                ...list
-            }));
+            const normalizedEbird = groupChecklists(rawChecklists).map(list => {
+                const dateStr = list.obsTime ? `${list.obsDt} ${list.obsTime}` : list.obsDt;
+                return {
+                    source: 'ebird',
+                    id: list.subId,
+                    date: new Date(dateStr.replace(/-/g, "/")),
+                    ...list
+                };
+            });
 
             // Note: Parallel fetch for loadMore too
             const inatData = await window.inat.fetchObservations(currentCoords.lat, currentCoords.lng);
