@@ -41,6 +41,14 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.reload();
     });
 
+    // Global Media Click Handler (Event Delegation for instant response)
+    feedItems.addEventListener('click', (e) => {
+        const mediaCard = e.target.closest('.card-media');
+        if (mediaCard) {
+            openLightbox(mediaCard.id);
+        }
+    });
+
     async function login(key) {
         if (key) {
             localStorage.setItem('ebird_api_key', key);
@@ -452,9 +460,6 @@ function renderMap(subId, lat, lng) {
                     </div>
                 `;
                 mediaEl.style.display = 'block';
-
-                // Add click listener to open the lightbox
-                mediaEl.onclick = () => openLightbox(elementId);
             } else {
                 mediaEl.style.display = 'none';
             }
@@ -474,6 +479,15 @@ function renderMap(subId, lat, lng) {
     function openLightbox(elementId) {
         const assets = galleryCache.get(elementId);
         if (!assets) return;
+
+        // Hide navigation arrows if there's only one photo
+        if (assets.length <= 1) {
+            lightboxPrev.style.display = 'none';
+            lightboxNext.style.display = 'none';
+        } else {
+            lightboxPrev.style.display = 'block';
+            lightboxNext.style.display = 'block';
+        }
 
         lightboxContent.innerHTML = assets.map(asset => {
             const url = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/1800`;
