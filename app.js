@@ -216,6 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span>🐦</span> ${list.numSpecies} Species sighted
                     </div>
                 </div>
+                <!-- Media/Photo Container -->
+                <div class="card-media" id="media-${list.subId}" style="display: none;"></div>
+                
                 <!-- Map Container (Lazy loaded) -->
                 <div class="map-container lazy-map" id="map-${list.subId}" 
                      data-lat="${list.loc.latitude}" 
@@ -257,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Fetch checklist details for species highlights
             fetchAndRenderSpecies(list.subId);
+            fetchAndRenderMedia(list.subId);
         }
 
         // Initialize Observer for Lazy Loading Maps
@@ -388,6 +392,32 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("Species fetch failed:", error);
             speciesEl.innerHTML = '<p style="font-size: 0.8rem; color: red;">Failed to load details.</p>';
+        }
+    }
+
+    async function fetchAndRenderMedia(subId) {
+        const mediaEl = document.getElementById(`media-${subId}`);
+        try {
+            // Macaulay Library API for checklist media
+            const resp = await fetch(`https://search.macaulaylibrary.org/api/v1/search?subId=${subId}`);
+            const data = await resp.json();
+            const assets = data.results?.content || [];
+            
+            if (assets.length > 0) {
+                // Use the first photo as the main feature
+                const photo = assets.find(a => a.mediaType === 'Photo') || assets[0];
+                const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${photo.catalogId}/900`;
+                
+                mediaEl.innerHTML = `
+                    <div class="photo-wrapper">
+                        <img src="${thumbUrl}" alt="Bird photo" loading="lazy">
+                        ${assets.length > 1 ? `<span class="photo-count">+${assets.length - 1} more</span>` : ''}
+                    </div>
+                `;
+                mediaEl.style.display = 'block';
+            }
+        } catch (error) {
+            console.warn("Media fetch failed (likely CORS or no media):", subId);
         }
     }
 });
