@@ -139,9 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function groupChecklists(checklists) {
         const groups = new Map();
         checklists.forEach(list => {
-            // Group by location, exact time, species count, AND user
-            // This prevents combined cards for people who birded 'together' but on separate checklists.
-            const key = `${list.locId}_${list.isoObsDate}_${list.numSpecies}_${list.userDisplayName}`;
+            // Group by location, exact time, and species count (heuristic for shared checklists)
+            const key = `${list.locId}_${list.isoObsDate}_${list.numSpecies}`;
             if (!groups.has(key)) {
                 groups.set(key, { ...list, subIds: [list.subId], contributors: [list.userDisplayName] });
             } else {
