@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="author-circle">${mainAuthor.charAt(0)}</div>
                     <div class="checklist-meta">
                         <h4>${authorText}</h4>
-                        <p>${dateStr} • <a href="https://www.google.com/maps/search/?api=1&query=${list.loc.latitude},${list.loc.longitude}" target="_blank" class="location-link">📍 ${list.locName}</a></p>
+                        <p>${dateStr} • <a href="https://www.google.com/maps/search/?api=1&query=${list.loc.latitude},${list.loc.longitude}" target="_blank" class="location-link">${list.locName}</a></p>
                     </div>
                 </div>
                 <div class="card-summary">
