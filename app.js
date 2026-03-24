@@ -158,8 +158,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span>🦅</span> ${list.numSpecies} Species sighted
                     </div>
                 </div>
-                <!-- Map Container -->
-                <div class="map-container" id="map-${list.subId}"></div>
+                <!-- Map Container (Lazy loaded) -->
+                <div class="map-container lazy-map" id="map-${list.subId}" 
+                     data-lat="${list.loc.latitude}" 
+                     data-lng="${list.loc.longitude}">
+                    <p style="text-align: center; padding: 100px; color: #999;">Loading Map...</p>
+                </div>
                 <div class="species-list" id="species-${list.subId}">
                     <p style="font-size: 0.8rem; color: #999;">Loading highlights...</p>
                 </div>
@@ -195,12 +199,28 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Fetch checklist details for species highlights
             fetchAndRenderSpecies(list.subId);
-
-            // Initialize the map immediately
-            if (list.loc && list.loc.latitude) {
-                renderMap(list.subId, list.loc.latitude, list.loc.longitude);
-            }
         }
+
+        // Initialize Observer for Lazy Loading Maps
+        setupLazyMaps();
+    }
+
+    function setupLazyMaps() {
+        const mapObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const el = entry.target;
+                    const subId = el.id.replace('map-', '');
+                    const lat = parseFloat(el.getAttribute('data-lat'));
+                    const lng = parseFloat(el.getAttribute('data-lng'));
+                    
+                    renderMap(subId, lat, lng);
+                    mapObserver.unobserve(el); // Stop observing once rendered
+                }
+            });
+        }, { rootMargin: '200px' });
+
+        document.querySelectorAll('.lazy-map').forEach(el => mapObserver.observe(el));
     }
 
     function renderMap(subId, lat, lng) {

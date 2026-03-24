@@ -68,8 +68,8 @@ class EbirdService {
     async getRecentChecklists(regionCode) {
         if (!this.apiKey) return this.getMockChecklists();
         
-        // Endpoint for recent checklists in a region
-        const checklists = await this.fetchJson(`/product/lists/${regionCode}`, { maxResults: 15 });
+        // Fetching up to 100 checklists (maximum eBird limit for this endpoint is 200)
+        const checklists = await this.fetchJson(`/product/lists/${regionCode}`, { maxResults: 100 });
         
         // Ensure locName exists for the feed
         return checklists.map(c => ({
