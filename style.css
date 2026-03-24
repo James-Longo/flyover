@@ -311,7 +311,7 @@ input:focus {
 }
 
 .no-media .map-container {
-    width: 140px; /* Slightly smaller for global mobile compat */
+    width: 140px !important; /* Force it to respect the split square */
     height: auto;
     min-height: 140px;
     flex-shrink: 0;
@@ -424,7 +424,6 @@ input:focus {
 
 .map-container {
     height: 300px;
-    width: 100%;
     background: #f0f0f5;
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
