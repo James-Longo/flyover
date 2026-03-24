@@ -391,8 +391,8 @@ input:focus {
 
 .species-main-info {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    gap: 12px;
 }
 
 .species-name {

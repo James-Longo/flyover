@@ -362,11 +362,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             let obs = [];
             let checklistComments = '';
+            const subId = elementId.replace('species-', '');
 
             if (source === 'inaturalist') {
                 obs = speciesCache.get(elementId) || [];
             } else {
-                const subId = elementId.replace('species-', '');
                 const details = await window.ebird.getChecklistDetails(subId);
                 obs = details.obs || [];
                 checklistComments = details.comments || '';
@@ -393,8 +393,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="species-item-wrapper">
                             <div class="species-item" ${hasSpeciesComments ? `data-toggle="${uniqueCommentId}" style="cursor: pointer;"` : ''}>
                                 <div class="species-main-info">
-                                    <span class="species-name">${s.comName} ${s.scientificName ? `<em style="font-size: 0.75rem; color: #999; margin-left: 5px;">(${s.scientificName})</em>` : ''}</span>
                                     <span class="species-qty">${s.howMany || '1'}</span>
+                                    <span class="species-name">${s.comName} ${s.scientificName ? `<em style="font-size: 0.75rem; color: #999; margin-left: 5px;">(${s.scientificName})</em>` : ''}</span>
                                 </div>
                                 ${hasSpeciesComments ? '<span class="note-indicator">View Notes ▾</span>' : ''}
                             </div>
