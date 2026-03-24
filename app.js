@@ -139,8 +139,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function groupChecklists(checklists) {
         const groups = new Map();
         checklists.forEach(list => {
-            // Group by location and exact time (heuristic for shared checklists)
-            const key = `${list.locId}_${list.isoObsDate}_${list.numSpecies}`;
+            // Group by location, exact time, species count, AND user
+            // This prevents combined cards for people who birded 'together' but on separate checklists.
+            const key = `${list.locId}_${list.isoObsDate}_${list.numSpecies}_${list.userDisplayName}`;
             if (!groups.has(key)) {
                 groups.set(key, { ...list, subIds: [list.subId], contributors: [list.userDisplayName] });
             } else {
@@ -416,7 +417,8 @@ function renderMap(subId, lat, lng) {
         try {
             // Fetch media for every subId in the group (Multi-subId Handshake)
             const fetchPromises = subIds.map(async (id) => {
-                const resp = await fetch(`https://search.macaulaylibrary.org/api/v1/search?subId=${id}`);
+                // includeUnconfirmed=1 allows us to see high-rarity or flagged photos before review
+                const resp = await fetch(`https://search.macaulaylibrary.org/api/v1/search?subId=${id}&includeUnconfirmed=1`);
                 if (resp.ok) {
                     const data = await resp.json();
                     return (data.results?.content || []).filter(a => a.mediaType === 'Photo');
