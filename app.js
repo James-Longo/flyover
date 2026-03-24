@@ -258,9 +258,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Fetch checklist details for species highlights
-            fetchAndRenderSpecies(list.subId);
-            fetchAndRenderMedia(list.subId);
+            // Fetch checklist details for species highlights and media sequentially
+            // Sequential fetching prevents Macaulay API rate-limiting/timeouts
+            await fetchAndRenderSpecies(list.subId);
+            await fetchAndRenderMedia(list.subId);
         }
 
         // Initialize Observer for Lazy Loading Maps
@@ -400,29 +401,36 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Macaulay Library API for checklist media
             const resp = await fetch(`https://search.macaulaylibrary.org/api/v1/search?subId=${subId}`);
+            if (!resp.ok) throw new Error("API Limit or Network Error");
+            
             const data = await resp.json();
-            const assets = data.results?.content || [];
+            const assets = (data.results?.content || []).filter(a => a.mediaType === 'Photo');
             
             if (assets.length > 0) {
-                // Use the first photo as the main feature
-                const photo = assets.find(a => a.mediaType === 'Photo') || assets[0];
-                const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${photo.catalogId}/1200`;
+                // Show up to 4 photos in a grid layout
+                const displayPhotos = assets.slice(0, 4);
                 
-                // Macaulay Library requires specific credit format:
-                // "Species © Contributor; Cornell Lab | Macaulay Library"
-                const creditText = `${photo.commonName} © ${photo.userDisplayName || 'Birder'}; Cornell Lab | Macaulay Library`;
-                
+                const photoHtml = displayPhotos.map(photo => {
+                    const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${photo.catalogId}/1200`;
+                    const creditText = `${photo.commonName} © ${photo.userDisplayName || 'Birder'}; Cornell Lab | Macaulay Library`;
+                    return `
+                        <div class="photo-wrapper">
+                            <img src="${thumbUrl}" alt="${photo.commonName}" loading="lazy">
+                            <div class="photo-credit">${creditText}</div>
+                        </div>
+                    `;
+                }).join('');
+
                 mediaEl.innerHTML = `
-                    <div class="photo-wrapper">
-                        <img src="${thumbUrl}" alt="${photo.commonName}" loading="lazy">
-                        <div class="photo-credit">${creditText}</div>
-                        ${assets.length > 1 ? `<span class="photo-count">+${assets.length - 1} more</span>` : ''}
+                    <div class="photo-grid ${assets.length > 1 ? 'is-gallery' : ''} count-${displayPhotos.length}">
+                        ${photoHtml}
+                        ${assets.length > 4 ? `<span class="photo-more">+${assets.length - 4} others</span>` : ''}
                     </div>
                 `;
                 mediaEl.style.display = 'block';
             }
         } catch (error) {
-            console.warn("Media fetch failed (likely CORS or no media):", subId);
+            console.warn("Media fetch failed for subId:", subId, error.message);
         }
     }
 });

@@ -483,7 +483,7 @@ input:focus {
     font-weight: 600;
 }
 
-/* Card Media / Photos */
+/* Card Media / Photos Grid */
 .card-media {
     width: 100%;
     background: #f8f8fa;
@@ -491,41 +491,72 @@ input:focus {
     overflow: hidden;
 }
 
+.photo-grid {
+    display: grid;
+    gap: 2px;
+    background: #fff;
+    position: relative;
+}
+
+.photo-grid.count-1 { grid-template-columns: 1fr; }
+.photo-grid.count-2 { grid-template-columns: 1fr 1fr; }
+.photo-grid.count-3 { 
+    grid-template-columns: 1.5fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+.photo-grid.count-3 .photo-wrapper:first-child {
+    grid-row: span 2;
+}
+.photo-grid.count-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
 .photo-wrapper {
     position: relative;
     width: 100%;
+    overflow: hidden;
+    background: #f0f0f5;
 }
 
 .photo-wrapper img {
     width: 100%;
-    height: auto;
-    max-height: 500px;
+    height: 100%;
     object-fit: cover;
     display: block;
+    aspect-ratio: 16/9;
 }
 
-.photo-count {
+.photo-grid.count-1 .photo-wrapper img {
+    aspect-ratio: auto;
+    max-height: 500px;
+}
+
+.photo-grid.count-3 .photo-wrapper img,
+.photo-grid.count-4 .photo-wrapper img {
+    aspect-ratio: 1/1;
+}
+
+.photo-more {
     position: absolute;
-    bottom: 1rem;
-    right: 1rem;
-    background: rgba(0,0,0,0.6);
+    bottom: 0.5rem;
+    right: 0.5rem;
+    background: rgba(0,0,0,0.7);
     color: white;
-    padding: 0.3rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    backdrop-filter: blur(4px);
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.70rem;
+    font-weight: 700;
+    z-index: 5;
+    pointer-events: none;
 }
 
 .photo-credit {
     position: absolute;
-    bottom: 1rem;
-    left: 1rem;
-    background: rgba(0,0,0,0.4);
-    color: rgba(255,255,255,0.9);
-    padding: 0.2rem 0.6rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    background: rgba(0,0,0,0.3);
+    color: rgba(255,255,255,0.8);
+    padding: 0.15rem 0.4rem;
     border-radius: 4px;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     pointer-events: none;
     backdrop-filter: blur(2px);
     max-width: 80%;
