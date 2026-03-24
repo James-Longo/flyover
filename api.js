@@ -63,13 +63,22 @@ class EbirdService {
     }
 
     /**
-     * Get recent checklists for a region (e.g., US-NY-001)
+     * Get recent checklists for a region, optionally for a specific date
      */
-    async getRecentChecklists(regionCode) {
+    async getRecentChecklists(regionCode, date = null) {
         if (!this.apiKey) return this.getMockChecklists();
         
-        // Fetching up to 100 checklists (maximum eBird limit for this endpoint is 200)
-        const checklists = await this.fetchJson(`/product/lists/${regionCode}`, { maxResults: 100 });
+        let endpoint = `/product/lists/${regionCode}`;
+        let params = { maxResults: 100 };
+        
+        if (date) {
+            const y = date.getFullYear();
+            const m = date.getMonth() + 1;
+            const d = date.getDate();
+            endpoint = `/product/lists/${regionCode}/${y}/${m}/${d}`;
+        }
+        
+        const checklists = await this.fetchJson(endpoint, params);
         
         // Ensure locName exists for the feed
         return checklists.map(c => ({

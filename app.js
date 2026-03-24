@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const regionSelect = document.createElement('div'); // Will inject into sidebar
 
     let currentRegion = localStorage.getItem('ebird_region') || "US-ME-009"; 
+    let lastLoadedDate = new Date();
+    let isLoadingMore = false;
 
     // Initialize state
     const savedKey = localStorage.getItem('ebird_api_key');
@@ -102,26 +104,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadFeed() {
         feedItems.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Fetching the latest sightings...</p></div>';
+        lastLoadedDate = new Date(); // Reset date on reload
+        clearInfiniteScroll(); // Remove old observers
         
         try {
-            // First time or when region changes, load the 'hot cache' of names
             await window.ebird.loadTaxonomy(currentRegion);
-            
             const checklists = await window.ebird.getRecentChecklists(currentRegion);
-            renderFeed(checklists);
+            renderFeed(checklists, true); // True = overwrite
             
+            // Set up start date for infinite scroll based on oldest item
+            if (checklists.length > 0) {
+                const oldest = new Date(checklists[checklists.length - 1].obsDt);
+                lastLoadedDate = new Date(oldest.setDate(oldest.getDate() - 1));
+            }
+            
+            setupInfiniteScroll();
+
             // Update stats
-            document.getElementById('stat-checklists').innerText = checklists.length;
+            const checklistsCount = document.querySelectorAll('.checklist-card').length;
+            document.getElementById('stat-checklists').innerText = checklistsCount;
             document.getElementById('stat-hotspots').innerText = new Set(checklists.map(c => c.locId)).size;
         } catch (error) {
+            console.error("Feed load failed:", error);
             feedItems.innerHTML = `<div class="error-state">Error loading feed: ${error.message}</div>`;
         }
     }
 
-    async function renderFeed(checklists) {
-        feedItems.innerHTML = '';
+    async function renderFeed(checklists, overwrite = false) {
+        if (overwrite) feedItems.innerHTML = '';
         
-        if (checklists.length === 0) {
+        if (checklists.length === 0 && overwrite) {
             feedItems.innerHTML = '<div class="empty-state">No recent checklists found in this region.</div>';
             return;
         }
@@ -203,6 +215,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Initialize Observer for Lazy Loading Maps
         setupLazyMaps();
+    }
+
+    let scrollObserver = null;
+    function setupInfiniteScroll() {
+        const sentinel = document.getElementById('load-more-sentinel');
+        if (!sentinel) return;
+
+        scrollObserver = new IntersectionObserver(async (entries) => {
+            if (entries[0].isIntersecting && !isLoadingMore) {
+                await loadMore();
+            }
+        }, { rootMargin: '400px' });
+
+        scrollObserver.observe(sentinel);
+    }
+
+    function clearInfiniteScroll() {
+        if (scrollObserver) {
+            scrollObserver.disconnect();
+            scrollObserver = null;
+        }
+    }
+
+    async function loadMore() {
+        if (isLoadingMore) return;
+        isLoadingMore = true;
+        
+        try {
+            console.log(`Loading checklists for: ${lastLoadedDate.toDateString()}`);
+            const checklists = await window.ebird.getRecentChecklists(currentRegion, lastLoadedDate);
+            
+            if (checklists.length > 0) {
+                renderFeed(checklists, false); // False = append
+            }
+            
+            // Move to previous day
+            lastLoadedDate.setDate(lastLoadedDate.getDate() - 1);
+        } catch (error) {
+            console.warn("Infinite scroll error:", error);
+        } finally {
+            isLoadingMore = false;
+        }
     }
 
     function setupLazyMaps() {
