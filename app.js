@@ -230,14 +230,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="card-media" id="media-${list.subIds.join('_')}" data-subids='${JSON.stringify(list.subIds)}'>
                 </div>
                 
-                <!-- Map Container (Lazy loaded) -->
-                <div class="map-container lazy-map" id="map-${list.subId}" 
-                     data-lat="${list.loc.latitude}" 
-                     data-lng="${list.loc.longitude}">
-                    <p style="text-align: center; padding: 100px; color: #999;">Loading Map...</p>
-                </div>
-                <div class="species-list" id="species-${list.subId}">
-                    <p style="font-size: 0.8rem; color: #999;">Loading highlights...</p>
+                <div class="card-content-split">
+                    <div class="species-list" id="species-${list.subId}">
+                        <p style="font-size: 0.8rem; color: #999;">Loading highlights...</p>
+                    </div>
+                    
+                    <!-- Map Container (Lazy loaded) -->
+                    <div class="map-container lazy-map" id="map-${list.subId}" 
+                         data-lat="${list.loc.latitude}" 
+                         data-lng="${list.loc.longitude}">
+                        <p style="text-align: center; padding: 50px; color: #999; font-size: 0.8rem;">Loading Map...</p>
+                    </div>
                 </div>
                 <div class="card-footer">
                     <button class="action-btn kudos-btn" data-subid="${list.subId}"><span>❤️</span> <span class="label">Kudos</span></button>
@@ -471,8 +474,10 @@ function renderMap(subId, lat, lng) {
                 `;
                 mediaEl.style.display = 'block';
                 mediaEl.style.margin = '1rem -1.5rem'; // Reveal with margin
+                mediaEl.closest('.checklist-card')?.classList.remove('no-media'); 
             } else {
                 mediaEl.style.display = 'none';
+                mediaEl.closest('.checklist-card')?.classList.add('no-media');
             }
         } catch (error) {
             console.warn("Media fetch failed for group:", subIds, error.message);

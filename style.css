@@ -295,6 +295,7 @@ input:focus {
 }
 
 /* Card Media (Silent Fetch - v24) */
+/* Card Media (Silent Fetch - v24) */
 .card-media {
     display: none;
     width: 100%;
@@ -304,6 +305,40 @@ input:focus {
     overflow: hidden;
     cursor: pointer;
     transition: all 0.3s ease-out;
+}
+
+/* Card Content Split Layout */
+.card-content-split {
+    display: flex;
+    flex-direction: column; /* Stack by default (mobile-first) */
+    width: 100%;
+}
+
+.no-media .card-content-split {
+    border-top: 1px solid #eee;
+}
+
+@media (min-width: 600px) {
+    .no-media .card-content-split {
+        flex-direction: row;
+        align-items: stretch;
+    }
+
+    .no-media .species-list {
+        flex: 1;
+        border-bottom: none;
+        padding: 1rem 1.5rem;
+    }
+
+    .no-media .map-container {
+        width: 180px;
+        height: auto; /* Take full height of species list */
+        min-height: 180px;
+        flex-shrink: 0;
+        margin: 0;
+        border-left: 1px solid #eee;
+        border-top: none;
+    }
 }
 
 .card-header {
