@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BirdFeed | Your Birding Activity</title>
+    <meta name="description" content="Recent eBird checklists in your area, styled like a social feed.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐦</text></svg>">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Login / Landing Screen -->
+        <section id="login-screen" class="screen active">
+            <div class="login-container">
+                <div class="logo">
+                    <span class="icon">🐦</span>
+                    <h1>BirdFeed</h1>
+                </div>
+                <p>Enter your eBird API key to view recent checklists in your area.</p>
+                <div class="input-group">
+                    <input type="password" id="api-key-input" placeholder="eBird API Token (v2)">
+                    <button id="login-btn" class="primary-btn">Let's Go</button>
+                    <a href="https://ebird.org/api/keygen" target="_blank" class="hint-link">Where do I find my API key?</a>
+                </div>
+                <div class="demo-notice">
+                    <button id="demo-btn">Or try the demo with mock data</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Feed Screen -->
+        <section id="feed-screen" class="screen">
+            <header class="main-header">
+                <div class="header-content">
+                    <div class="logo-small">🐦 BirdFeed</div>
+                    <nav class="main-nav">
+                        <button id="logout-btn">Logout</button>
+                    </nav>
+                </div>
+            </header>
+
+            <main class="feed-layout">
+                <aside class="sidebar left">
+                    <div class="profile-card">
+                        <div class="avatar">👤</div>
+                        <div class="user-info">
+                            <h3 id="user-name">Birder</h3>
+                            <p id="user-region">Detecting location...</p>
+                        </div>
+                    </div>
+                </aside>
+
+                <div class="feed-container">
+                    <div class="feed-header">
+                        <h2>Recent Activity</h2>
+                        <div class="view-toggle">
+                            <button class="active">All</button>
+                            <button>Hotspots</button>
+                        </div>
+                    </div>
+                    <div id="feed-items">
+                        <!-- Checklist cards will be injected here -->
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Fetching the latest sightings...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="sidebar right">
+                    <div class="stats-card">
+                        <h3>Local Stats</h3>
+                        <div class="stat">
+                            <span class="label">Recent Checklists</span>
+                            <span class="value" id="stat-checklists">--</span>
+                        </div>
+                        <div class="stat">
+                            <span class="label">Major Hotspots</span>
+                            <span class="value" id="stat-hotspots">--</span>
+                        </div>
+                    </div>
+                </aside>
+            </main>
+        </section>
+    </div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
