@@ -474,8 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lightboxContent.innerHTML = assets.map(asset => {
             const suffix = asset.mediaType === 'Audio' ? 'poster' : '1800';
             const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/${suffix}`;
-            const videoUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/video`;
-            const audioUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/audio`;
+            const embedUrl = `https://media.ebird.org/api/v1/asset/${asset.catalogId}/embed`;
             
             // Cleanup Label
             const typeLabel = asset.mediaType === 'Photo' ? '' : ` (${asset.mediaType})`;
@@ -483,19 +482,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const mlUrl = `https://macaulaylibrary.org/asset/${asset.catalogId}`;
             
             let mediaContent = '';
-            if (asset.mediaType === 'Video') {
+            if (asset.mediaType === 'Video' || asset.mediaType === 'Audio') {
                 mediaContent = `
-                    <video controls poster="${thumbUrl}" class="lightbox-video">
-                        <source src="${videoUrl}" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>`;
-            } else if (asset.mediaType === 'Audio') {
-                mediaContent = `
-                    <img src="${thumbUrl}" alt="Audio Spectrogram" class="audio-spectrogram">
-                    <audio controls class="lightbox-audio">
-                        <source src="${audioUrl}" type="audio/mpeg">
-                        Your browser does not support the audio element.
-                    </audio>`;
+                    <div class="lightbox-embed-container">
+                        <iframe src="${embedUrl}" class="lightbox-embed" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+                    </div>`;
             } else {
                 mediaContent = `<img src="${thumbUrl}" alt="${asset.commonName}">`;
             }
@@ -506,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="lightbox-caption">
                         <p>${credit}</p>
                         <p style="font-size: 0.75rem; margin-top: 5px;">
-                            <a href="${mlUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">View Original on Macaulay Library ↗</a>
+                            <a href="${mlUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">Explore on Macaulay Library ↗</a>
                         </p>
                     </div>
                 </div>
