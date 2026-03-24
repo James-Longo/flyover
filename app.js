@@ -415,7 +415,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const displayPhotos = uniqueAssets.slice(0, 4);
                 
                 const photoHtml = displayPhotos.map(photo => {
-                    const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${photo.catalogId}/1200`;
+                    const suffix = photo.mediaType === 'Audio' ? 'poster' : '1200';
+                    const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${photo.catalogId}/${suffix}`;
                     const creditText = `${photo.commonName} © ${photo.userDisplayName || 'Birder'}; Cornell Lab | Macaulay Library`;
                     
                     // Determine Badge
@@ -471,7 +472,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         lightboxContent.innerHTML = assets.map(asset => {
-            const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/1800`;
+            const suffix = asset.mediaType === 'Audio' ? 'poster' : '1800';
+            const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/${suffix}`;
             const videoUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/video`;
             const audioUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/audio`;
             
