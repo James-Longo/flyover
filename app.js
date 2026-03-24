@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedKey = localStorage.getItem('ebird_api_key');
     if (savedKey) {
         login(savedKey);
+    } else {
+        loginScreen.classList.add('active'); // Only show if not logged in
     }
 
     // Event Listeners
