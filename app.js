@@ -110,12 +110,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             await window.ebird.loadTaxonomy(currentRegion);
-            const checklists = await window.ebird.getRecentChecklists(currentRegion);
-            renderFeed(checklists, true); // True = overwrite
+            const rawChecklists = await window.ebird.getRecentChecklists(currentRegion);
+            const groupedChecklists = groupChecklists(rawChecklists);
+            renderFeed(groupedChecklists, true); // True = overwrite
             
             // Set up start date for infinite scroll based on oldest item
-            if (checklists.length > 0) {
-                const oldest = new Date(checklists[checklists.length - 1].obsDt);
+            if (rawChecklists.length > 0) {
+                const oldest = new Date(rawChecklists[rawChecklists.length - 1].obsDt);
                 lastLoadedDate = new Date(oldest.setDate(oldest.getDate() - 1));
             }
             
@@ -124,11 +125,28 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update stats
             const checklistsCount = document.querySelectorAll('.checklist-card').length;
             document.getElementById('stat-checklists').innerText = checklistsCount;
-            document.getElementById('stat-hotspots').innerText = new Set(checklists.map(c => c.locId)).size;
+            document.getElementById('stat-hotspots').innerText = new Set(groupedChecklists.map(c => c.locId)).size;
         } catch (error) {
             console.error("Feed load failed:", error);
             feedItems.innerHTML = `<div class="error-state">Error loading feed: ${error.message}</div>`;
         }
+    }
+
+    function groupChecklists(checklists) {
+        const groups = new Map();
+        checklists.forEach(list => {
+            // Group by location and exact time (heuristic for shared checklists)
+            const key = `${list.locId}_${list.isoObsDate}_${list.numSpecies}`;
+            if (!groups.has(key)) {
+                groups.set(key, { ...list, contributors: [list.userDisplayName] });
+            } else {
+                const group = groups.get(key);
+                if (!group.contributors.includes(list.userDisplayName)) {
+                    group.contributors.push(list.userDisplayName);
+                }
+            }
+        });
+        return Array.from(groups.values());
     }
 
     async function renderFeed(checklists, overwrite = false) {
@@ -143,6 +161,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'checklist-card';
             
+            const authors = list.contributors || [list.userDisplayName];
+            const mainAuthor = authors[0];
+            let authorText = mainAuthor;
+            
+            if (authors.length === 2) {
+                authorText = `${mainAuthor} birded with ${authors[1]}`;
+            } else if (authors.length > 2) {
+                authorText = `${mainAuthor} birded with ${authors[1]} and ${authors.length - 2} others`;
+            }
+
             // Format date and time correctly
             // Some eBird responses have obsTime as a separate field or joined in isoObsDate
             let displayDate = list.obsDt;
@@ -160,9 +188,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             card.innerHTML = `
                 <div class="card-header">
-                    <div class="author-circle">${list.userDisplayName.charAt(0)}</div>
+                    <div class="author-circle">${mainAuthor.charAt(0)}</div>
                     <div class="checklist-meta">
-                        <h4>${list.userDisplayName}</h4>
+                        <h4>${authorText}</h4>
                         <p>${dateStr} • ${list.locName}</p>
                     </div>
                 </div>
@@ -244,10 +272,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             console.log(`Loading checklists for: ${lastLoadedDate.toDateString()}`);
-            const checklists = await window.ebird.getRecentChecklists(currentRegion, lastLoadedDate);
+            const rawChecklists = await window.ebird.getRecentChecklists(currentRegion, lastLoadedDate);
             
-            if (checklists.length > 0) {
-                renderFeed(checklists, false); // False = append
+            if (rawChecklists.length > 0) {
+                const grouped = groupChecklists(rawChecklists);
+                renderFeed(grouped, false); // False = append
             }
             
             // Move to previous day
