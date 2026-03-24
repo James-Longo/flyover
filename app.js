@@ -57,23 +57,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    function detectLocation() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    const { latitude, longitude } = position.coords;
-                    // For a real app, we'd use reverse geocoding to get a county/region code.
-                    // For the prototype, we'll inform the user and keep the default or try to find a nearby hotspot's region.
-                    userRegionEl.innerText = `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
-                    console.log("Location detected:", latitude, longitude);
-                },
-                (error) => {
-                    console.warn("Geolocation failed:", error);
-                    userRegionEl.innerText = "Albany, NY (Default)";
+    async function detectLocation() {
+        if (!navigator.geolocation) return;
+
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            const { latitude, longitude } = position.coords;
+            console.log("Location detected:", latitude, longitude);
+
+            try {
+                // 1. Reverse geocode to get county name/state
+                const geoResp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+                const geoData = await geoResp.json();
+                const county = geoData.address.county || geoData.address.city;
+                const state = geoData.address.state;
+                
+                if (county && state) {
+                    userRegionEl.innerText = `${county}, ${state}`;
+                    
+                    // 2. Map county/state to eBird region code
+                    // We need the state code first (e.g. US-ME)
+                    // Nominatim doesn't give us US-ME directly, so we'll look it up or fallback
+                    // For now, let's assume US-[State] logic or fetch state list
+                    const foundRegion = await findEbirdRegion(county, state);
+                    if (foundRegion) {
+                        currentRegion = foundRegion;
+                        localStorage.setItem('ebird_region', currentRegion);
+                        loadFeed();
+                    }
                 }
-            );
-        } else {
-            userRegionEl.innerText = "Albany, NY (Default)";
+            } catch (error) {
+                console.warn("Reverse geocode failed:", error);
+            }
+        });
+    }
+
+    async function findEbirdRegion(countyName, stateName) {
+        try {
+            // Simplified: Fetch subregions for US-ME-type code
+            // In a full app, we'd have a state-to-code map. 
+            // For now, let's target Maine/NY/CA as primary regions
+            const stateCodes = { "Maine": "US-ME", "New York": "US-NY", "Massachusetts": "US-MA", "California": "US-CA" };
+            const stateCode = stateCodes[stateName];
+            if (!stateCode) return null;
+
+            const regions = await window.ebird.fetchJson(`/ref/region/list/sub1/${stateCode}`);
+            const cleanCounty = countyName.replace(' County', '');
+            const match = regions.find(r => r.name.toLowerCase() === cleanCounty.toLowerCase());
+            return match ? match.code : null;
+        } catch (e) {
+            return null;
         }
     }
 
@@ -123,9 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function updateRegionalStats() {
         try {
-            // Region code for stats is typically at the state/region level (e.g. US-ME)
-            const stateCode = currentRegion.split('-').slice(0, 2).join('-');
-            const stats = await window.ebird.getRegionalStats(stateCode);
+            // Stats should follow the currently detected county/region code
+            const stats = await window.ebird.getRegionalStats(currentRegion);
             
             document.getElementById('stat-checklists').innerText = stats.numChecklists || 0;
             document.getElementById('stat-species').innerText = stats.numSpecies || 0;
