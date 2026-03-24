@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastLoadedDate = new Date();
     let scrollObserver = null;
     const galleryCache = new Map();
+    const activeMaps = new Map();
 
     const savedKey = localStorage.getItem('ebird_api_key');
     if (savedKey) {
@@ -186,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (const list of checklists) {
             const card = document.createElement('div');
-            card.className = 'checklist-card';
+            card.className = 'checklist-card no-media'; 
 
             const authors = list.contributors || [list.userDisplayName];
             const mainAuthor = authors[0];
@@ -381,6 +382,8 @@ function renderMap(subId, lat, lng) {
         // Add a marker for the birding hotspot/location
         L.marker([lat, lng]).addTo(map);
 
+        activeMaps.set(subId, map);
+
         // Ensure map renders properly in case container size changed
         setTimeout(() => map.invalidateSize(), 100);
     }
@@ -473,11 +476,17 @@ function renderMap(subId, lat, lng) {
                     </div>
                 `;
                 mediaEl.style.display = 'block';
-                mediaEl.style.margin = '1rem -1.5rem'; // Reveal with margin
+                mediaEl.style.margin = '1rem -1.5rem';
                 mediaEl.closest('.checklist-card')?.classList.remove('no-media'); 
+
+                // Refresh map if it exists to fix centering after expansion
+                const cardSubId = elementId.replace('media-', '').split('_')[0];
+                const map = activeMaps.get(cardSubId);
+                if (map) {
+                    setTimeout(() => map.invalidateSize(), 300);
+                }
             } else {
                 mediaEl.style.display = 'none';
-                mediaEl.closest('.checklist-card')?.classList.add('no-media');
             }
         } catch (error) {
             console.warn("Media fetch failed for group:", subIds, error.message);
