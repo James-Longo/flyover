@@ -63,6 +63,24 @@ class EbirdService {
     }
 
     /**
+     * Get regional stats for a date (e.g., US-ME, 2026-03-24)
+     */
+    async getRegionalStats(regionCode, date = new Date()) {
+        if (!this.apiKey) return { numChecklists: 0, numContributors: 0, numSpecies: 0 };
+        
+        try {
+            const y = date.getFullYear();
+            const m = date.getMonth() + 1;
+            const d = date.getDate();
+            const stats = await this.fetchJson(`/product/stats/${regionCode}/${y}/${m}/${d}`);
+            return stats;
+        } catch (e) {
+            console.warn("Stats fetch failed:", e);
+            return { numChecklists: 0, numContributors: 0, numSpecies: 0 };
+        }
+    }
+
+    /**
      * Get recent checklists for a region, optionally for a specific date
      */
     async getRecentChecklists(regionCode, date = null) {

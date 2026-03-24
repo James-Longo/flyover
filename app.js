@@ -95,6 +95,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             setupInfiniteScroll();
+            
+            // Fetch and update regional stats for today
+            updateRegionalStats();
         } catch (error) {
             console.error("Feed load failed:", error);
             feedItems.innerHTML = `<div class="error-state">Error loading feed: ${error.message}</div>`;
@@ -116,6 +119,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         return Array.from(groups.values());
+    }
+
+    async function updateRegionalStats() {
+        try {
+            // Region code for stats is typically at the state/region level (e.g. US-ME)
+            const stateCode = currentRegion.split('-').slice(0, 2).join('-');
+            const stats = await window.ebird.getRegionalStats(stateCode);
+            
+            document.getElementById('stat-checklists').innerText = stats.numChecklists || 0;
+            document.getElementById('stat-species').innerText = stats.numSpecies || 0;
+            document.getElementById('stat-contributors').innerText = stats.numContributors || 0;
+        } catch (e) {
+            console.warn("Could not update local stats:", e);
+        }
     }
 
     async function renderFeed(checklists, overwrite = false) {
