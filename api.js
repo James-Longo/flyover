@@ -198,3 +198,67 @@ class EbirdService {
 }
 
 window.ebird = new EbirdService();
+
+/**
+ * iNaturalist API Service Layer
+ */
+const INAT_BASE_URL = 'https://api.inaturalist.org/v1';
+
+class InaturalistService {
+    async fetchObservations(lat, lng, radius = 20) {
+        const url = new URL(`${INAT_BASE_URL}/observations`);
+        url.searchParams.append('lat', lat);
+        url.searchParams.append('lng', lng);
+        url.searchParams.append('radius', radius);
+        url.searchParams.append('per_page', 30);
+        url.searchParams.append('order_by', 'created_at');
+        url.searchParams.append('order', 'desc');
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`iNaturalist API error: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return data.results.map(obs => this.normalize(obs));
+    }
+
+    normalize(obs) {
+        // Map iNaturalist structure to the unified Sighting model
+        const photos = (obs.observation_photos || []).map(p => ({
+            catalogId: p.photo.id,
+            url: p.photo.url.replace('square', 'large'),
+            mediaType: 'Photo',
+            commonName: obs.taxon?.preferred_common_name || obs.taxon?.name || "Unknown Organism",
+            userDisplayName: obs.user.login
+        }));
+
+        const sounds = (obs.sounds || []).map(s => ({
+            catalogId: s.id,
+            url: s.file_url,
+            mediaType: 'Audio',
+            commonName: obs.taxon?.preferred_common_name || obs.taxon?.name || "Unknown Organism",
+            userDisplayName: obs.user.login
+        }));
+
+        const [lat, lng] = obs.location ? obs.location.split(',').map(Number) : [null, null];
+
+        return {
+            source: 'inaturalist',
+            id: obs.id,
+            obsDt: obs.time_observed_at || obs.observed_on_string,
+            date: new Date(obs.time_observed_at || obs.observed_on_string),
+            locName: obs.place_guess || "Unknown Location",
+            userDisplayName: obs.user.login,
+            numSpecies: 1,
+            obs: [{
+                comName: obs.taxon?.preferred_common_name || obs.taxon?.name || "Unknown Organism",
+                scientificName: obs.taxon?.name,
+                howMany: 1
+            }],
+            loc: { latitude: lat, longitude: lng },
+            media: [...photos, ...sounds]
+        };
+    }
+}
+
+window.inat = new InaturalistService();

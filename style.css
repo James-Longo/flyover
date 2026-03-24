@@ -100,6 +100,18 @@ input[type="password"] {
     transition: all 0.2s;
 }
 
+.source-badge-ebird {
+    background: rgba(0, 85, 150, 0.1) !important;
+    color: #4da3ff !important;
+    border: 1px solid rgba(0, 85, 150, 0.2) !important;
+}
+
+.source-badge-inat {
+    background: rgba(116, 172, 0, 0.1) !important;
+    color: #a3e033 !important;
+    border: 1px solid rgba(116, 172, 0, 0.2) !important;
+}
+
 input:focus {
     outline: none;
     border-color: var(--primary);

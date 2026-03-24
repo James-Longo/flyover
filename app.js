@@ -14,10 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize state
     let currentRegion = localStorage.getItem('ebird_region') || 'US-ME-009'; // Default to Penobscot, ME
+    let currentCoords = { lat: 44.8016, lng: -68.7712 }; // Default to Bangor, ME
     let isLoadingMore = false;
     let lastLoadedDate = new Date();
     let scrollObserver = null;
     const galleryCache = new Map();
+    const speciesCache = new Map();
 
     const savedKey = localStorage.getItem('ebird_api_key');
     if (savedKey) {
@@ -71,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         navigator.geolocation.getCurrentPosition(async (position) => {
             const { latitude, longitude } = position.coords;
+            currentCoords = { lat: latitude, lng: longitude };
             console.log("Location detected:", latitude, longitude);
 
             try {
@@ -83,10 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (county && state) {
                     userRegionEl.innerText = `${county}, ${state}`;
                     
-                    // 2. Map county/state to eBird region code
-                    // We need the state code first (e.g. US-ME)
-                    // Nominatim doesn't give us US-ME directly, so we'll look it up or fallback
-                    // For now, let's assume US-[State] logic or fetch state list
                     const foundRegion = await findEbirdRegion(county, state);
                     if (foundRegion) {
                         currentRegion = foundRegion;
@@ -102,9 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function findEbirdRegion(countyName, stateName) {
         try {
-            // Simplified: Fetch subregions for US-ME-type code
-            // In a full app, we'd have a state-to-code map. 
-            // For now, let's target Maine/NY/CA as primary regions
             const stateCodes = { "Maine": "US-ME", "New York": "US-NY", "Massachusetts": "US-MA", "California": "US-CA" };
             const stateCode = stateCodes[stateName];
             if (!stateCode) return null;
@@ -119,25 +115,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadFeed() {
-        feedItems.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Fetching the latest sightings...</p></div>';
+        feedItems.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Fetching from eBird & iNaturalist...</p></div>';
         lastLoadedDate = new Date(); // Reset date on reload
         clearInfiniteScroll(); // Remove old observers
 
         try {
             await window.ebird.loadTaxonomy(currentRegion);
-            const rawChecklists = await window.ebird.getRecentChecklists(currentRegion);
-            const groupedChecklists = groupChecklists(rawChecklists);
-            renderFeed(groupedChecklists, true); // True = overwrite
+            
+            // Parallel Fetch
+            const [ebirdData, inatData] = await Promise.all([
+                window.ebird.getRecentChecklists(currentRegion),
+                window.inat.fetchObservations(currentCoords.lat, currentCoords.lng)
+            ]);
 
-            // Set up start date for infinite scroll based on oldest item
-            if (rawChecklists.length > 0) {
-                const oldest = new Date(rawChecklists[rawChecklists.length - 1].obsDt);
-                lastLoadedDate = new Date(oldest.setDate(oldest.getDate() - 1));
-            }
+            // Normalize eBird sightings to match unified format
+            const normalizedEbird = groupChecklists(ebirdData).map(list => ({
+                source: 'ebird',
+                id: list.subId,
+                date: new Date(list.obsDt),
+                ...list
+            }));
+
+            // Combine and Sort by Date
+            const combinedFeed = [...normalizedEbird, ...inatData].sort((a, b) => b.date - a.date);
+            
+            // Pre-populate caches for instant loading
+            combinedFeed.forEach(item => {
+                if (item.source === 'inaturalist') {
+                    galleryCache.set(`media-${item.id}`, item.media);
+                    speciesCache.set(`species-${item.id}`, item.obs);
+                }
+            });
+
+            renderFeed(combinedFeed, true); // True = overwrite
 
             setupInfiniteScroll();
-            
-            // Fetch and update regional stats for today
             updateRegionalStats();
         } catch (error) {
             console.error("Feed load failed:", error);
@@ -198,50 +210,49 @@ document.addEventListener('DOMContentLoaded', () => {
                 authorText = `${mainAuthor} with ${authors[1]} and ${authors.length - 2} others`;
             }
 
-            // Format date and time correctly
-            // Some eBird responses have obsTime as a separate field or joined in isoObsDate
-            let displayDate = list.obsDt;
-            if (list.obsTime) {
-                displayDate = `${list.obsDt} ${list.obsTime}`;
-            }
-
-            const dateObj = new Date(displayDate.replace(/-/g, "/")); // Better compat for parsing
-            const dateStr = dateObj.toLocaleDateString([], {
+            const dateStr = list.date.toLocaleDateString([], {
                 month: 'short',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
             });
 
+            const isInat = list.source === 'inaturalist';
+            const sourceClass = isInat ? 'source-badge-inat' : 'source-badge-ebird';
+            const sourceLabel = isInat ? 'iNaturalist' : 'eBird';
+
             card.innerHTML = `
                 <div class="card-header">
                     <div class="author-circle">${mainAuthor.charAt(0)}</div>
                     <div class="checklist-meta">
-                        <h4>${authorText}</h4>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <h4>${authorText}</h4>
+                            <span class="source-badge ${sourceClass}">${sourceLabel}</span>
+                        </div>
                         <p>${dateStr} • <a href="https://www.google.com/maps/search/?api=1&query=${list.loc.latitude},${list.loc.longitude}" target="_blank" class="location-link">${list.locName}</a></p>
                     </div>
                 </div>
                 <div class="card-summary">
                     <div class="obs-count">
-                        <span>🐦</span> ${list.numSpecies} Species sighted
+                        <span>${isInat ? '🌿' : '🐦'}</span> ${list.numSpecies} ${isInat ? 'Observation' : 'Species sighted'}
                     </div>
                 </div>
                 <!-- Media/Photo Container -->
-                <div class="card-media" id="media-${list.subIds.join('_')}" data-subids='${JSON.stringify(list.subIds)}'>
+                <div class="card-media" id="media-${list.id}" data-id="${list.id}" data-source="${list.source}" data-subids='${JSON.stringify(list.subIds || [list.id])}'>
                 </div>
                 
-                <div class="species-list" id="species-${list.subId}">
+                <div class="species-list" id="species-${list.id}" data-id="${list.id}" data-source="${list.source}">
                     <p style="font-size: 0.8rem; color: #999;">Loading highlights...</p>
                 </div>
                 <div class="card-footer">
-                    <button class="action-btn kudos-btn" data-subid="${list.subId}"><span>❤️</span> <span class="label">Kudos</span></button>
+                    <button class="action-btn kudos-btn" data-id="${list.id}"><span>❤️</span> <span class="label">Kudos</span></button>
                     <button class="action-btn comment-btn"><span>💬</span> Comment</button>
                 </div>
             `;
 
             feedItems.appendChild(card);
 
-            // Add interaction listeners
+            // Interaction Listeners
             const kudosBtn = card.querySelector('.kudos-btn');
             kudosBtn.addEventListener('click', () => {
                 kudosBtn.classList.toggle('active');
@@ -257,17 +268,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const commentBtn = card.querySelector('.comment-btn');
             commentBtn.addEventListener('click', () => {
-                const comment = prompt("Add a comment to this checklist:");
-                if (comment) {
-                    alert("Comment saved (locally)!");
-                }
+                const comment = prompt("Add a comment to this sighting:");
+                if (comment) alert("Comment saved (locally)!");
             });
-
-            // Note: We no longer fetch details/media here. 
-            // Instead, we let the setupLazyContent() observer trigger them as the user scrolls.
         }
 
-        // Initialize Observer for Lazy Loading Content (Maps, Photos, Highlights)
         setupLazyContent();
     }
 
@@ -296,15 +301,25 @@ document.addEventListener('DOMContentLoaded', () => {
         isLoadingMore = true;
 
         try {
-            console.log(`Loading checklists for: ${lastLoadedDate.toDateString()}`);
+            console.log(`Loading sightings for: ${lastLoadedDate.toDateString()}`);
             const rawChecklists = await window.ebird.getRecentChecklists(currentRegion, lastLoadedDate);
+            const normalizedEbird = groupChecklists(rawChecklists).map(list => ({
+                source: 'ebird',
+                id: list.subId,
+                date: new Date(list.obsDt),
+                ...list
+            }));
 
-            if (rawChecklists.length > 0) {
-                const grouped = groupChecklists(rawChecklists);
-                renderFeed(grouped, false); // False = append
-            }
+            // Note: Parallel fetch for loadMore too
+            const inatData = await window.inat.fetchObservations(currentCoords.lat, currentCoords.lng);
+            inatData.forEach(item => {
+                galleryCache.set(`media-${item.id}`, item.media);
+                speciesCache.set(`species-${item.id}`, item.obs);
+            });
 
-            // Move to previous day
+            const combinedFeed = [...normalizedEbird, ...inatData].sort((a, b) => b.date - a.date);
+            renderFeed(combinedFeed, false); // False = append
+
             lastLoadedDate.setDate(lastLoadedDate.getDate() - 1);
         } catch (error) {
             console.warn("Infinite scroll error:", error);
@@ -319,17 +334,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (entry.isIntersecting) {
                     const card = entry.target;
                     
-                    // Trigger Species
-                    const speciesEl = card.querySelector('[id^="species-"]');
+                    const speciesEl = card.querySelector('.species-list');
                     if (speciesEl) {
-                        const subId = speciesEl.id.replace('species-', '');
-                        await fetchAndRenderSpecies(subId);
+                        await fetchAndRenderSpecies(speciesEl.id, speciesEl.dataset.source);
                     }
 
-                    // Trigger Media (Silent Fetch)
-                    const mediaEl = card.querySelector('[id^="media-"]');
+                    const mediaEl = card.querySelector('.card-media');
                     if (mediaEl) {
-                        await fetchAndRenderMedia(mediaEl.id);
+                        await fetchAndRenderMedia(mediaEl.id, mediaEl.dataset.source);
                     }
 
                     contentObserver.unobserve(card);
@@ -343,18 +355,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    async function fetchAndRenderSpecies(subId) {
-        const speciesEl = document.getElementById(`species-${subId}`);
+    async function fetchAndRenderSpecies(elementId, source) {
+        const speciesEl = document.getElementById(elementId);
+        if (!speciesEl) return;
+
         try {
-            const details = await window.ebird.getChecklistDetails(subId);
-            const obs = details.obs || [];
+            let obs = [];
+            if (source === 'inaturalist') {
+                obs = speciesCache.get(elementId) || [];
+            } else {
+                const subId = elementId.replace('species-', '');
+                const details = await window.ebird.getChecklistDetails(subId);
+                obs = details.obs || [];
+            }
 
             if (obs.length > 0) {
-                const renderSpecies = (items, showAll = false) => {
+                const renderSpeciesList = (items, showAll = false) => {
                     const limit = showAll ? items.length : 5;
                     let html = items.slice(0, limit).map(s => `
                         <div class="species-item">
-                            <span class="species-name">${s.comName}</span>
+                            <span class="species-name">${s.comName} ${s.scientificName ? `<em style="font-size: 0.75rem; color: #999; margin-left: 5px;">(${s.scientificName})</em>` : ''}</span>
                             <span class="species-qty">${s.howMany || '1'}</span>
                         </div>
                     `).join('');
@@ -367,18 +387,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     return html;
                 };
 
-                speciesEl.innerHTML = renderSpecies(obs);
-
-                // Add event listeners for the new buttons
+                speciesEl.innerHTML = renderSpeciesList(obs);
                 speciesEl.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('show-all-btn')) {
-                        speciesEl.innerHTML = renderSpecies(obs, true);
-                    } else if (e.target.classList.contains('show-less-btn')) {
-                        speciesEl.innerHTML = renderSpecies(obs, false);
-                    }
+                    if (e.target.classList.contains('show-all-btn')) speciesEl.innerHTML = renderSpeciesList(obs, true);
+                    else if (e.target.classList.contains('show-less-btn')) speciesEl.innerHTML = renderSpeciesList(obs, false);
                 });
             } else {
-                speciesEl.innerHTML = '<p style="font-size: 0.8rem; color: #999;">No species details available.</p>';
+                speciesEl.innerHTML = '<p style="font-size: 0.8rem; color: #999;">No details available.</p>';
             }
         } catch (error) {
             console.error("Species fetch failed:", error);
@@ -386,67 +401,69 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function fetchAndRenderMedia(elementId) {
+    async function fetchAndRenderMedia(elementId, source) {
         const mediaEl = document.getElementById(elementId);
         if (!mediaEl) return;
         
-        const subIds = JSON.parse(mediaEl.getAttribute('data-subids') || "[]");
-        let allAssets = [];
+        let uniqueAssets = [];
 
-        try {
-            // Fetch media for every subId in the group (Multi-subId Handshake)
+        if (source === 'inaturalist') {
+            uniqueAssets = galleryCache.get(elementId) || [];
+        } else {
+            const subIds = JSON.parse(mediaEl.getAttribute('data-subids') || "[]");
             const fetchPromises = subIds.map(async (id) => {
-                // includeUnconfirmed API v1 expects includeUnconfirmed=true
                 const resp = await fetch(`https://search.macaulaylibrary.org/api/v1/search?subId=${id}&includeUnconfirmed=true`);
                 if (resp.ok) {
                     const data = await resp.json();
-                    // Include all media types (Photo, Video, Audio)
                     return (data.results?.content || []);
                 }
                 return [];
             });
 
             const results = await Promise.all(fetchPromises);
-            const uniqueAssets = Array.from(new Map(results.flat().map(a => [a.catalogId, a])).values());
+            uniqueAssets = Array.from(new Map(results.flat().map(a => [a.catalogId, a])).values());
+        }
+
+        if (uniqueAssets.length > 0) {
+            galleryCache.set(elementId, uniqueAssets);
+            const displayPhotos = uniqueAssets.slice(0, 4);
             
-            if (uniqueAssets.length > 0) {
-                galleryCache.set(elementId, uniqueAssets);
-                
-                const displayPhotos = uniqueAssets.slice(0, 4);
-                
-                const photoHtml = displayPhotos.map(photo => {
+            const photoHtml = displayPhotos.map(photo => {
+                let thumbUrl = '';
+                if (source === 'inaturalist') {
+                    thumbUrl = photo.url;
+                } else {
                     const suffix = photo.mediaType === 'Audio' ? 'poster' : '1200';
-                    const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${photo.catalogId}/${suffix}`;
-                    const creditText = `${photo.commonName} © ${photo.userDisplayName || 'Birder'}; Cornell Lab | Macaulay Library`;
-                    
-                    // Determine Badge
-                    let badge = '';
-                    if (photo.mediaType === 'Video') badge = '<div class="media-badge video-badge">🎥 Video</div>';
-                    if (photo.mediaType === 'Audio') badge = '<div class="media-badge audio-badge">🔈 Audio</div>';
+                    thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${photo.catalogId}/${suffix}`;
+                }
 
-                    return `
-                        <div class="photo-wrapper">
-                            ${badge}
-                            <img src="${thumbUrl}" alt="${photo.commonName}" loading="lazy">
-                            <div class="photo-credit">${creditText}</div>
-                        </div>
-                    `;
-                }).join('');
+                const creditText = source === 'inaturalist' 
+                    ? `${photo.commonName} © ${photo.userDisplayName || 'iNaturalist Observer'}`
+                    : `${photo.commonName} © ${photo.userDisplayName || 'Birder'}; Cornell Lab | Macaulay Library`;
+                
+                let badge = '';
+                if (photo.mediaType === 'Video') badge = '<div class="media-badge video-badge">🎥 Video</div>';
+                if (photo.mediaType === 'Audio') badge = '<div class="media-badge audio-badge">🔈 Audio</div>';
 
-                mediaEl.innerHTML = `
-                    <div class="photo-grid ${uniqueAssets.length > 1 ? 'is-gallery' : ''} count-${displayPhotos.length}">
-                        ${photoHtml}
-                        ${uniqueAssets.length > 4 ? `<span class="photo-more">+${uniqueAssets.length - 4} others</span>` : ''}
+                return `
+                    <div class="photo-wrapper">
+                        ${badge}
+                        <img src="${thumbUrl}" alt="${photo.commonName}" loading="lazy">
+                        <div class="photo-credit">${creditText}</div>
                     </div>
                 `;
-                mediaEl.style.display = 'block';
-                mediaEl.style.margin = '1rem -1.5rem';
-                mediaEl.closest('.checklist-card')?.classList.remove('no-media'); 
-            } else {
-                mediaEl.style.display = 'none';
-            }
-        } catch (error) {
-            console.warn("Media fetch failed for group:", subIds, error.message);
+            }).join('');
+
+            mediaEl.innerHTML = `
+                <div class="photo-grid ${uniqueAssets.length > 1 ? 'is-gallery' : ''} count-${displayPhotos.length}">
+                    ${photoHtml}
+                    ${uniqueAssets.length > 4 ? `<span class="photo-more">+${uniqueAssets.length - 4} others</span>` : ''}
+                </div>
+            `;
+            mediaEl.style.display = 'block';
+            mediaEl.style.margin = '1rem -1.5rem';
+            mediaEl.closest('.checklist-card')?.classList.remove('no-media'); 
+        } else {
             mediaEl.style.display = 'none';
         }
     }
