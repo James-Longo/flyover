@@ -217,7 +217,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <!-- Media/Photo Container -->
-                <div class="card-media lazy-content" id="media-${list.subId}"></div>
+                <div class="card-media" id="media-${list.subId}">
+                    <div class="photo-placeholder">Checking for birding photos...</div>
+                </div>
                 
                 <!-- Map Container (Lazy loaded) -->
                 <div class="map-container lazy-map" id="map-${list.subId}" 
@@ -225,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
                      data-lng="${list.loc.longitude}">
                     <p style="text-align: center; padding: 100px; color: #999;">Loading Map...</p>
                 </div>
-                <div class="species-list lazy-content" id="species-${list.subId}">
+                <div class="species-list" id="species-${list.subId}">
                     <p style="font-size: 0.8rem; color: #999;">Loading highlights...</p>
                 </div>
                 <div class="card-footer">
@@ -436,7 +438,7 @@ function renderMap(subId, lat, lng) {
                 `;
                 mediaEl.style.display = 'block';
             } else {
-                mediaEl.style.display = 'none'; // Hide if truly no media
+                mediaEl.style.display = 'none'; // Hide if no photos exist
             }
         } catch (error) {
             console.warn("Media fetch failed for subId:", subId, error.message);
