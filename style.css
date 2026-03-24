@@ -559,3 +559,62 @@ input:focus {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* Lightbox Overlay */
+.lightbox {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.95);
+    z-index: 10000;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+    backdrop-filter: blur(10px);
+}
+
+.lightbox.active {
+    display: flex;
+}
+
+.lightbox-content {
+    width: 100%;
+    max-width: 900px;
+    padding: 2rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.lightbox-content img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.lightbox-close {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    color: white;
+    font-size: 3rem;
+    cursor: pointer;
+    z-index: 10001;
+    line-height: 1;
+}
+
+.lightbox-close:hover {
+    color: var(--primary);
+}
+
+.lightbox-caption {
+    color: white;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    text-align: center;
+    font-weight: 500;
+}

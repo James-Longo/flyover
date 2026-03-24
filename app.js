@@ -12,12 +12,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const userRegionEl = document.getElementById('user-region');
     const regionSelect = document.createElement('div'); // Will inject into sidebar
 
-    let currentRegion = localStorage.getItem('ebird_region') || "US-ME-009";
-    let lastLoadedDate = new Date();
-    let isLoadingMore = false;
-    let scrollObserver = null;
-
     // Initialize state
+    let currentRegion = localStorage.getItem('ebird_region') || 'US-ME-009'; // Default to Penobscot, ME
+    let isLoadingMore = false;
+    let lastLoadedDate = new Date();
+    let scrollObserver = null;
+    const galleryCache = new Map();
+
     const savedKey = localStorage.getItem('ebird_api_key');
     if (savedKey) {
         login(savedKey);
@@ -426,11 +427,11 @@ function renderMap(subId, lat, lng) {
             });
 
             const results = await Promise.all(fetchPromises);
-            allAssets = results.flat();
+            const uniqueAssets = Array.from(new Map(results.flat().map(a => [a.catalogId, a])).values());
             
-            if (allAssets.length > 0) {
-                // Remove duplicates (e.g. if companions shared photos)
-                const uniqueAssets = Array.from(new Map(allAssets.map(a => [a.catalogId, a])).values());
+            if (uniqueAssets.length > 0) {
+                galleryCache.set(elementId, uniqueAssets);
+                
                 const displayPhotos = uniqueAssets.slice(0, 4);
                 
                 const photoHtml = displayPhotos.map(photo => {
@@ -451,6 +452,9 @@ function renderMap(subId, lat, lng) {
                     </div>
                 `;
                 mediaEl.style.display = 'block';
+
+                // Add click listener to open the lightbox
+                mediaEl.onclick = () => openLightbox(elementId);
             } else {
                 mediaEl.style.display = 'none';
             }
@@ -459,4 +463,40 @@ function renderMap(subId, lat, lng) {
             mediaEl.style.display = 'none';
         }
     }
+
+    // Lightbox Functionality
+    const lightbox = document.getElementById('lightbox-overlay');
+    const lightboxContent = document.getElementById('lightbox-content');
+    const lightboxClose = document.querySelector('.lightbox-close');
+
+    function openLightbox(elementId) {
+        const assets = galleryCache.get(elementId);
+        if (!assets) return;
+
+        lightboxContent.innerHTML = assets.map(asset => {
+            const url = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/1800`;
+            const credit = `${asset.commonName} © ${asset.userDisplayName || 'Birder'}; Cornell Lab | Macaulay Library`;
+            return `
+                <div class="lightbox-photo-item">
+                    <img src="${url}" alt="${asset.commonName}">
+                    <div class="lightbox-caption">${credit}</div>
+                </div>
+            `;
+        }).join('');
+
+        lightbox.classList.add('active');
+        document.body.style.overflow = 'hidden'; // Prevent scroll behind
+    }
+
+    lightboxClose.onclick = () => {
+        lightbox.classList.remove('active');
+        document.body.style.overflow = '';
+    };
+
+    lightbox.onclick = (e) => {
+        if (e.target === lightbox) {
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    };
 });
