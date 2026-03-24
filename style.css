@@ -660,3 +660,35 @@ input:focus {
     padding: 0.5rem 1rem;
     border-radius: 20px;
 }
+
+/* Mobile Refinements */
+@media (max-width: 768px) {
+    header {
+        padding: 0.8rem 1rem;
+    }
+
+    header h1 {
+        font-size: 1.25rem;
+    }
+
+    .lightbox-nav {
+        font-size: 3.5rem;
+        padding: 0 0.5rem;
+    }
+
+    .lightbox-close {
+        top: 1rem;
+        right: 1.5rem;
+        font-size: 2rem;
+    }
+
+    .lightbox-photo-item {
+        padding: 1rem;
+    }
+
+    .lightbox-caption {
+        font-size: 0.85rem;
+        max-width: 85%;
+        margin-top: 1rem;
+    }
+}
