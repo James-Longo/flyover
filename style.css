@@ -382,7 +382,7 @@ input:focus {
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
     z-index: 10;
-    pointer-events: none; /* Resolves all mobile scrolling issues */
+    pointer-events: none !important; /* Forces total mobile transparency */
 }
 
 /* Adjust Leaflet zoom buttons for cleaner look */
