@@ -474,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lightboxContent.innerHTML = assets.map(asset => {
             const suffix = asset.mediaType === 'Audio' ? 'poster' : '1800';
             const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/${suffix}`;
-            const embedUrl = `https://macaulaylibrary.org/asset/${asset.catalogId}/embed`;
+            const embedUrl = `https://www.macaulaylibrary.org/asset/${asset.catalogId}/embed`;
             
             // Cleanup Label
             const typeLabel = asset.mediaType === 'Photo' ? '' : ` (${asset.mediaType})`;
@@ -483,9 +483,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let mediaContent = '';
             if (asset.mediaType === 'Video' || asset.mediaType === 'Audio') {
+                // Use data-src for Lazy Loading/Stopping
                 mediaContent = `
                     <div class="lightbox-embed-container">
-                        <iframe src="${embedUrl}" class="lightbox-embed" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+                        <iframe data-src="${embedUrl}" class="lightbox-embed" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
                     </div>`;
             } else {
                 mediaContent = `<img src="${thumbUrl}" alt="${asset.commonName}">`;
@@ -504,15 +505,37 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }).join('');
 
+        // Smart Media Observer (Stops audio/video on navigate)
+        const mediaObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const iframe = entry.target.querySelector('iframe');
+                if (!iframe) return;
+
+                if (entry.isIntersecting) {
+                    // Start Playing
+                    if (!iframe.src) iframe.src = iframe.getAttribute('data-src');
+                } else {
+                    // Stop Playing (Reset Src)
+                    iframe.src = '';
+                }
+            });
+        }, { threshold: 0.5 });
+
+        lightboxContent.querySelectorAll('.lightbox-photo-item').forEach(item => mediaObserver.observe(item));
+
         lightbox.classList.add('active');
-        document.body.style.overflow = 'hidden'; // Prevent scroll behind
-        lightboxContent.scrollLeft = 0; // Reset to start
+        document.body.style.overflow = 'hidden'; 
+        lightboxContent.scrollLeft = 0; 
     }
 
-    lightboxClose.onclick = () => {
+    const closeLightbox = () => {
         lightbox.classList.remove('active');
         document.body.style.overflow = '';
+        // Kill all media immediately
+        lightboxContent.innerHTML = '';
     };
+
+    lightboxClose.onclick = closeLightbox;
 
     lightboxPrev.onclick = (e) => {
         e.stopPropagation();
@@ -533,15 +556,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (e.key === 'ArrowRight') {
             lightboxContent.scrollBy({ left: lightboxContent.clientWidth, behavior: 'smooth' });
         } else if (e.key === 'Escape') {
-            lightbox.classList.remove('active');
-            document.body.style.overflow = '';
+            closeLightbox();
         }
     });
 
     lightbox.onclick = (e) => {
-        if (e.target === lightbox) {
-            lightbox.classList.remove('active');
-            document.body.style.overflow = '';
-        }
+        if (e.target === lightbox) closeLightbox();
     };
 });
