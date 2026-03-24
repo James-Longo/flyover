@@ -400,7 +400,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const resp = await fetch(`https://search.macaulaylibrary.org/api/v1/search?subId=${id}&includeUnconfirmed=true`);
                 if (resp.ok) {
                     const data = await resp.json();
-                    return (data.results?.content || []).filter(a => a.mediaType === 'Photo');
+                    // Include all media types (Photo, Video, Audio)
+                    return (data.results?.content || []);
                 }
                 return [];
             });
@@ -416,8 +417,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const photoHtml = displayPhotos.map(photo => {
                     const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${photo.catalogId}/1200`;
                     const creditText = `${photo.commonName} © ${photo.userDisplayName || 'Birder'}; Cornell Lab | Macaulay Library`;
+                    
+                    // Determine Badge
+                    let badge = '';
+                    if (photo.mediaType === 'Video') badge = '<div class="media-badge video-badge">🎥 Video</div>';
+                    if (photo.mediaType === 'Audio') badge = '<div class="media-badge audio-badge">🔈 Audio</div>';
+
                     return `
                         <div class="photo-wrapper">
+                            ${badge}
                             <img src="${thumbUrl}" alt="${photo.commonName}" loading="lazy">
                             <div class="photo-credit">${creditText}</div>
                         </div>
@@ -464,11 +472,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         lightboxContent.innerHTML = assets.map(asset => {
             const url = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/1800`;
-            const credit = `${asset.commonName} © ${asset.userDisplayName || 'Birder'}; Cornell Lab | Macaulay Library`;
+            const credit = `${asset.commonName} (${asset.mediaType}) © ${asset.userDisplayName || 'Birder'}`;
+            const mlUrl = `https://macaulaylibrary.org/asset/${asset.catalogId}`;
+            
             return `
                 <div class="lightbox-photo-item">
                     <img src="${url}" alt="${asset.commonName}">
-                    <div class="lightbox-caption">${credit}</div>
+                    <div class="lightbox-caption">
+                        <p>${credit}</p>
+                        <p style="font-size: 0.75rem; margin-top: 5px;">
+                            <a href="${mlUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">View on Macaulay Library ↗</a>
+                        </p>
+                    </div>
                 </div>
             `;
         }).join('');
