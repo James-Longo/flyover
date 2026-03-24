@@ -282,9 +282,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const map = L.map(`map-${subId}`, {
             center: [lat, lng],
             zoom: 13,
-            zoomControl: true,
-            dragging: true,
-            scrollWheelZoom: false // Keep feed scrolling smooth
+            zoomControl: false, // Cleaner Strava-like look
+            dragging: false,    // No more scroll interference
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+            keyboard: false,
+            touchZoom: false
         });
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
