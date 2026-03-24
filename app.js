@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const userRegionEl = document.getElementById('user-region');
     const regionSelect = document.createElement('div'); // Will inject into sidebar
 
-    let currentRegion = localStorage.getItem('ebird_region') || "US-ME-009"; 
+    let currentRegion = localStorage.getItem('ebird_region') || "US-ME-009";
     let lastLoadedDate = new Date();
     let isLoadingMore = false;
     let scrollObserver = null;
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Try to get location
         detectLocation();
-        
+
         // Initial load
         loadFeed();
     }
@@ -79,19 +79,19 @@ document.addEventListener('DOMContentLoaded', () => {
         feedItems.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Fetching the latest sightings...</p></div>';
         lastLoadedDate = new Date(); // Reset date on reload
         clearInfiniteScroll(); // Remove old observers
-        
+
         try {
             await window.ebird.loadTaxonomy(currentRegion);
             const rawChecklists = await window.ebird.getRecentChecklists(currentRegion);
             const groupedChecklists = groupChecklists(rawChecklists);
             renderFeed(groupedChecklists, true); // True = overwrite
-            
+
             // Set up start date for infinite scroll based on oldest item
             if (rawChecklists.length > 0) {
                 const oldest = new Date(rawChecklists[rawChecklists.length - 1].obsDt);
                 lastLoadedDate = new Date(oldest.setDate(oldest.getDate() - 1));
             }
-            
+
             setupInfiniteScroll();
         } catch (error) {
             console.error("Feed load failed:", error);
@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function renderFeed(checklists, overwrite = false) {
         if (overwrite) feedItems.innerHTML = '';
-        
+
         if (checklists.length === 0 && overwrite) {
             feedItems.innerHTML = '<div class="empty-state">No recent checklists found in this region.</div>';
             return;
@@ -127,15 +127,15 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const list of checklists) {
             const card = document.createElement('div');
             card.className = 'checklist-card';
-            
+
             const authors = list.contributors || [list.userDisplayName];
             const mainAuthor = authors[0];
             let authorText = mainAuthor;
-            
+
             if (authors.length === 2) {
-                authorText = `${mainAuthor} birded with ${authors[1]}`;
+                authorText = `${mainAuthor} with ${authors[1]}`;
             } else if (authors.length > 2) {
-                authorText = `${mainAuthor} birded with ${authors[1]} and ${authors.length - 2} others`;
+                authorText = `${mainAuthor} with ${authors[1]} and ${authors.length - 2} others`;
             }
 
             // Format date and time correctly
@@ -144,13 +144,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (list.obsTime) {
                 displayDate = `${list.obsDt} ${list.obsTime}`;
             }
-            
+
             const dateObj = new Date(displayDate.replace(/-/g, "/")); // Better compat for parsing
-            const dateStr = dateObj.toLocaleDateString([], { 
-                month: 'short', 
-                day: 'numeric', 
-                hour: '2-digit', 
-                minute: '2-digit' 
+            const dateStr = dateObj.toLocaleDateString([], {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
             });
 
             card.innerHTML = `
@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="card-summary">
                     <div class="obs-count">
-                        <span>🦅</span> ${list.numSpecies} Species sighted
+                        <span>🐦</span> ${list.numSpecies} Species sighted
                     </div>
                 </div>
                 <!-- Map Container (Lazy loaded) -->
@@ -180,9 +180,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="action-btn comment-btn"><span>💬</span> Comment</button>
                 </div>
             `;
-            
+
             feedItems.appendChild(card);
-            
+
             // Add interaction listeners
             const kudosBtn = card.querySelector('.kudos-btn');
             kudosBtn.addEventListener('click', () => {
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert("Comment saved (locally)!");
                 }
             });
-            
+
             // Fetch checklist details for species highlights
             fetchAndRenderSpecies(list.subId);
         }
@@ -236,16 +236,16 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadMore() {
         if (isLoadingMore) return;
         isLoadingMore = true;
-        
+
         try {
             console.log(`Loading checklists for: ${lastLoadedDate.toDateString()}`);
             const rawChecklists = await window.ebird.getRecentChecklists(currentRegion, lastLoadedDate);
-            
+
             if (rawChecklists.length > 0) {
                 const grouped = groupChecklists(rawChecklists);
                 renderFeed(grouped, false); // False = append
             }
-            
+
             // Move to previous day
             lastLoadedDate.setDate(lastLoadedDate.getDate() - 1);
         } catch (error) {
@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const subId = el.id.replace('map-', '');
                     const lat = parseFloat(el.getAttribute('data-lat'));
                     const lng = parseFloat(el.getAttribute('data-lng'));
-                    
+
                     renderMap(subId, lat, lng);
                     mapObserver.unobserve(el); // Stop observing once rendered
                 }
@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const details = await window.ebird.getChecklistDetails(subId);
             const obs = details.obs || [];
-            
+
             if (obs.length > 0) {
                 const renderSpecies = (items, showAll = false) => {
                     const limit = showAll ? items.length : 5;
@@ -313,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="species-qty">${s.howMany || '1'}</span>
                         </div>
                     `).join('');
-                    
+
                     if (!showAll && items.length > 5) {
                         html += `<button class="show-all-btn" style="background: none; border: none; color: var(--primary); font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 0.5rem 0;">+ ${items.length - 5} more species (Show All)</button>`;
                     } else if (showAll && items.length > 5) {
