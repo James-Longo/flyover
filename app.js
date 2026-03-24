@@ -418,7 +418,7 @@ function renderMap(subId, lat, lng) {
             // Fetch media for every subId in the group (Multi-subId Handshake)
             const fetchPromises = subIds.map(async (id) => {
                 // includeUnconfirmed=1 allows us to see high-rarity or flagged photos before review
-                const resp = await fetch(`https://search.macaulaylibrary.org/api/v1/search?subId=${id}&includeUnconfirmed=1`);
+                const resp = await fetch(`https://search.macaulaylibrary.org/api/v1/search?subId=${id}`);
                 if (resp.ok) {
                     const data = await resp.json();
                     return (data.results?.content || []).filter(a => a.mediaType === 'Photo');
