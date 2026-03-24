@@ -54,34 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Try to get location
         detectLocation();
-        setupSidebar();
         
         // Initial load
         loadFeed();
     }
 
-    function setupSidebar() {
-        const sidebar = document.querySelector('.sidebar.left');
-        const regionCard = document.createElement('div');
-        regionCard.className = 'region-card';
-        regionCard.innerHTML = `
-            <h3>Region</h3>
-            <select id="region-picker" style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #ddd;">
-                <option value="US-NY-001" ${currentRegion === 'US-NY-001' ? 'selected' : ''}>Albany, NY</option>
-                <option value="US-NY-061" ${currentRegion === 'US-NY-061' ? 'selected' : ''}>New York, NY</option>
-                <option value="US-CA-075" ${currentRegion === 'US-CA-075' ? 'selected' : ''}>San Francisco, CA</option>
-                <option value="US-MA-025" ${currentRegion === 'US-MA-025' ? 'selected' : ''}>Boston, MA</option>
-            </select>
-            <p style="font-size: 0.75rem; color: #999; margin-top: 0.5rem;">Enter a region code to change area.</p>
-        `;
-        sidebar.appendChild(regionCard);
-
-        document.getElementById('region-picker').addEventListener('change', (e) => {
-            currentRegion = e.target.value;
-            localStorage.setItem('ebird_region', currentRegion);
-            loadFeed();
-        });
-    }
 
     function detectLocation() {
         if (navigator.geolocation) {
