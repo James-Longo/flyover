@@ -442,8 +442,37 @@ input:focus {
     background: #f0f0f5;
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
-    z-index: 10;
-    pointer-events: none !important;
+    position: relative; /* For the unlock overlay */
+    overflow: hidden;
+}
+
+.map-unlock-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.1);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500; /* Above tiles, below UI */
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05rem;
+    text-shadow: 0 1px 10px rgba(0,0,0,0.8);
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.map-container:hover .map-unlock-overlay {
+    background: rgba(0,0,0,0.2);
+}
+
+.map-container.unlocked .map-unlock-overlay {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .card-media {

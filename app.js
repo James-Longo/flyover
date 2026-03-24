@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="map-container lazy-map" id="map-${list.subId}" 
                          data-lat="${list.loc.latitude}" 
                          data-lng="${list.loc.longitude}">
-                        <p style="text-align: center; padding: 50px; color: #999; font-size: 0.8rem;">Loading Map...</p>
+                        <div class="map-unlock-overlay">Tap to Explore</div>
                     </div>
                 </div>
                 <div class="card-footer">
@@ -386,6 +386,27 @@ function renderMap(subId, lat, lng) {
 
         // Ensure map renders properly in case container size changed
         setTimeout(() => map.invalidateSize(), 100);
+
+        // Interaction Toggle Logic (Tap to Unlock)
+        const unlockOverlay = document.getElementById(`map-${subId}`).querySelector('.map-unlock-overlay');
+        if (unlockOverlay) {
+            unlockOverlay.onclick = (e) => {
+                e.stopPropagation();
+                const container = document.getElementById(`map-${subId}`);
+                container.classList.add('unlocked');
+                
+                // Unlock Leaflet Handlers
+                map.dragging.enable();
+                map.scrollWheelZoom.enable();
+                map.doubleClickZoom.enable();
+                map.boxZoom.enable();
+                map.keyboard.enable();
+                if (map.tap) map.tap.enable(); // for mobile
+                
+                // Force a check in case it's on a boundary
+                map.invalidateSize();
+            };
+        }
     }
 
     async function fetchAndRenderSpecies(subId) {
