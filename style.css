@@ -290,39 +290,10 @@ input:focus {
     transition: all 0.3s ease-out;
 }
 
-/* Card Content Split Layout */
-.card-content-split {
-    display: flex;
-    flex-direction: column; /* Stack by default (mobile-first) */
-    width: 100%;
-}
-
-.no-media .card-content-split {
-    border-top: 1px solid #eee;
-}
-
-@media (min-width: 600px) {
-    .no-media .card-content-split {
-        flex-direction: row;
-        align-items: stretch;
-    }
-
-    .no-media .species-list {
-        flex: 1;
-        border-bottom: none;
-        padding: 1rem 1.5rem;
-        min-width: 0;
-    }
-
-    .no-media .map-container {
-        width: 180px !important;
-        height: auto;
-        min-height: 180px;
-        flex-shrink: 0;
-        margin: 0;
-        border-left: 1px solid #eee;
-        border-top: none;
-    }
+/* Species List Body View */
+.species-list {
+    padding: 0 1.5rem 1.5rem 1.5rem;
+    border-bottom: 1px solid var(--border);
 }
 
 .card-header {
@@ -351,6 +322,17 @@ input:focus {
 .checklist-meta p {
     color: var(--text-muted);
     font-size: 0.85rem;
+}
+
+.location-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.location-link:hover {
+    color: var(--primary);
+    text-decoration: underline;
 }
 
 .card-summary {
@@ -420,35 +402,8 @@ input:focus {
     color: var(--primary);
 }
 
-.map-container {
-    height: 300px;
-    width: 100%;
-    background: #f0f0f5;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    position: relative; /* For the unlock overlay */
-    overflow: hidden;
-}
+/* Feed Sidebar Fixes if needed */
 
-.map-unlock-overlay {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: transparent;
-    z-index: 500; /* Above tiles, below UI */
-    cursor: zoom-in;
-    transition: all 0.3s ease;
-    user-select: none;
-}
-
-.map-container:hover .map-unlock-overlay {
-    background: rgba(0,0,0,0.05); /* Extremely subtle hint */
-}
-
-.map-container.unlocked .map-unlock-overlay {
-    opacity: 0;
-    pointer-events: none;
-}
 
 .card-media {
     width: 100%;

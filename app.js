@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastLoadedDate = new Date();
     let scrollObserver = null;
     const galleryCache = new Map();
-    const activeMaps = new Map();
 
     const savedKey = localStorage.getItem('ebird_api_key');
     if (savedKey) {
@@ -187,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (const list of checklists) {
             const card = document.createElement('div');
-            card.className = 'checklist-card no-media'; 
+            card.className = 'checklist-card'; 
 
             const authors = list.contributors || [list.userDisplayName];
             const mainAuthor = authors[0];
@@ -219,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="author-circle">${mainAuthor.charAt(0)}</div>
                     <div class="checklist-meta">
                         <h4>${authorText}</h4>
-                        <p>${dateStr} • ${list.locName}</p>
+                        <p>${dateStr} • <a href="https://www.google.com/maps/search/?api=1&query=${list.loc.latitude},${list.loc.longitude}" target="_blank" class="location-link">📍 ${list.locName}</a></p>
                     </div>
                 </div>
                 <div class="card-summary">
@@ -231,17 +230,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="card-media" id="media-${list.subIds.join('_')}" data-subids='${JSON.stringify(list.subIds)}'>
                 </div>
                 
-                <div class="card-content-split">
-                    <div class="species-list" id="species-${list.subId}">
-                        <p style="font-size: 0.8rem; color: #999;">Loading highlights...</p>
-                    </div>
-                    
-                    <!-- Map Container (Lazy loaded) -->
-                    <div class="map-container lazy-map" id="map-${list.subId}" 
-                         data-lat="${list.loc.latitude}" 
-                         data-lng="${list.loc.longitude}">
-                        <div class="map-unlock-overlay"></div>
-                    </div>
+                <div class="species-list" id="species-${list.subId}">
+                    <p style="font-size: 0.8rem; color: #999;">Loading highlights...</p>
                 </div>
                 <div class="card-footer">
                     <button class="action-btn kudos-btn" data-subid="${list.subId}"><span>❤️</span> <span class="label">Kudos</span></button>
@@ -329,15 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (entry.isIntersecting) {
                     const card = entry.target;
                     
-                    // Trigger Map
-                    const mapEl = card.querySelector('.lazy-map');
-                    if (mapEl) {
-                        const subId = mapEl.id.replace('map-', '');
-                        const lat = parseFloat(mapEl.getAttribute('data-lat'));
-                        const lng = parseFloat(mapEl.getAttribute('data-lng'));
-                        renderMap(subId, lat, lng);
-                    }
-
                     // Trigger Species
                     const speciesEl = card.querySelector('[id^="species-"]');
                     if (speciesEl) {
@@ -360,53 +341,6 @@ document.addEventListener('DOMContentLoaded', () => {
             card.classList.add('observed');
             contentObserver.observe(card);
         });
-    }
-function renderMap(subId, lat, lng) {
-        // Leaflet expects the ID without the #
-        const map = L.map(`map-${subId}`, {
-            center: [lat, lng],
-            zoom: 13,
-            zoomControl: false, // Cleaner Strava-like look
-            dragging: false,    // No more scroll interference
-            scrollWheelZoom: false,
-            doubleClickZoom: false,
-            boxZoom: false,
-            keyboard: false,
-            touchZoom: false
-        });
-
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri'
-        }).addTo(map);
-
-        // Add a marker for the birding hotspot/location
-        L.marker([lat, lng]).addTo(map);
-
-        activeMaps.set(subId, map);
-
-        // Ensure map renders properly in case container size changed
-        setTimeout(() => map.invalidateSize(), 100);
-
-        // Interaction Toggle Logic (Tap to Unlock)
-        const unlockOverlay = document.getElementById(`map-${subId}`).querySelector('.map-unlock-overlay');
-        if (unlockOverlay) {
-            unlockOverlay.onclick = (e) => {
-                e.stopPropagation();
-                const container = document.getElementById(`map-${subId}`);
-                container.classList.add('unlocked');
-                
-                // Unlock Leaflet Handlers
-                map.dragging.enable();
-                map.scrollWheelZoom.enable();
-                map.doubleClickZoom.enable();
-                map.boxZoom.enable();
-                map.keyboard.enable();
-                if (map.tap) map.tap.enable(); // for mobile
-                
-                // Force a check in case it's on a boundary
-                map.invalidateSize();
-            };
-        }
     }
 
     async function fetchAndRenderSpecies(subId) {
@@ -499,13 +433,6 @@ function renderMap(subId, lat, lng) {
                 mediaEl.style.display = 'block';
                 mediaEl.style.margin = '1rem -1.5rem';
                 mediaEl.closest('.checklist-card')?.classList.remove('no-media'); 
-
-                // Refresh map if it exists to fix centering after expansion
-                const cardSubId = elementId.replace('media-', '').split('_')[0];
-                const map = activeMaps.get(cardSubId);
-                if (map) {
-                    setTimeout(() => map.invalidateSize(), 300);
-                }
             } else {
                 mediaEl.style.display = 'none';
             }
