@@ -122,10 +122,13 @@ class EbirdService {
                 obsTime: d.obsTime,
                 locName: d.locName || (d.loc && d.loc.name) || "Unknown Location",
                 userDisplayName: d.userDisplayName,
+                comments: d.comments || "",
                 obs: (d.obs || d.observations || []).map(o => ({
-                    comName: this.getSpeciesName(o.speciesCode),
+                    comName: o.comName || this.getSpeciesName(o.speciesCode),
+                    scientificName: o.sciName || o.scientificName || "",
                     howMany: o.howMany || o.count || o.howManyStr || "1",
-                    speciesCode: o.speciesCode
+                    speciesCode: o.speciesCode,
+                    comments: o.comments || ""
                 }))
             };
         } catch (e) {

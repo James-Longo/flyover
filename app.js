@@ -361,23 +361,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             let obs = [];
+            let checklistComments = '';
+
             if (source === 'inaturalist') {
                 obs = speciesCache.get(elementId) || [];
             } else {
                 const subId = elementId.replace('species-', '');
                 const details = await window.ebird.getChecklistDetails(subId);
                 obs = details.obs || [];
+                checklistComments = details.comments || '';
             }
 
-            if (obs.length > 0) {
+            if (obs.length > 0 || checklistComments) {
                 const renderSpeciesList = (items, showAll = false) => {
+                    let html = '';
+                    
+                    // 1. Checklist-level Comments
+                    if (checklistComments) {
+                        html += `
+                            <div class="checklist-comments-box">
+                                <p class="comment-text">"${checklistComments}"</p>
+                            </div>
+                        `;
+                    }
+
                     const limit = showAll ? items.length : 5;
-                    let html = items.slice(0, limit).map(s => `
-                        <div class="species-item">
-                            <span class="species-name">${s.comName} ${s.scientificName ? `<em style="font-size: 0.75rem; color: #999; margin-left: 5px;">(${s.scientificName})</em>` : ''}</span>
-                            <span class="species-qty">${s.howMany || '1'}</span>
+                    const itemsHtml = items.slice(0, limit).map(s => {
+                        const hasSpeciesComments = s.comments && s.comments.trim().length > 0;
+                        const uniqueCommentId = `comment-${subId}-${s.speciesCode}`;
+                        return `
+                        <div class="species-item-wrapper">
+                            <div class="species-item" ${hasSpeciesComments ? `data-toggle="${uniqueCommentId}" style="cursor: pointer;"` : ''}>
+                                <div class="species-main-info">
+                                    <span class="species-name">${s.comName} ${s.scientificName ? `<em style="font-size: 0.75rem; color: #999; margin-left: 5px;">(${s.scientificName})</em>` : ''}</span>
+                                    <span class="species-qty">${s.howMany || '1'}</span>
+                                </div>
+                                ${hasSpeciesComments ? '<span class="note-indicator">View Notes ▾</span>' : ''}
+                            </div>
+                            ${hasSpeciesComments ? `
+                                <div class="species-comment-dropdown" id="${uniqueCommentId}" style="display: none;">
+                                    <p>${s.comments}</p>
+                                </div>
+                            ` : ''}
                         </div>
-                    `).join('');
+                    `}).join('');
+
+                    html += itemsHtml;
 
                     if (!showAll && items.length > 5) {
                         html += `<button class="show-all-btn" style="background: none; border: none; color: var(--primary); font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 0.5rem 0;">+ ${items.length - 5} more species (Show All)</button>`;
@@ -388,15 +417,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
 
                 speciesEl.innerHTML = renderSpeciesList(obs);
+                
+                // Interaction Logic
                 speciesEl.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('show-all-btn')) speciesEl.innerHTML = renderSpeciesList(obs, true);
-                    else if (e.target.classList.contains('show-less-btn')) speciesEl.innerHTML = renderSpeciesList(obs, false);
+                    if (e.target.classList.contains('show-all-btn')) {
+                        speciesEl.innerHTML = renderSpeciesList(obs, true);
+                    } else if (e.target.classList.contains('show-less-btn')) {
+                        speciesEl.innerHTML = renderSpeciesList(obs, false);
+                    } else {
+                        const speciesItem = e.target.closest('.species-item');
+                        if (speciesItem && speciesItem.dataset.toggle) {
+                            const commentId = speciesItem.dataset.toggle;
+                            const commentBox = speciesEl.querySelector(`#${commentId}`);
+                            const indicator = speciesItem.querySelector('.note-indicator');
+                            if (commentBox) {
+                                const isHidden = commentBox.style.display === 'none';
+                                commentBox.style.display = isHidden ? 'block' : 'none';
+                                speciesItem.classList.toggle('is-expanded', isHidden);
+                                if (indicator) indicator.innerText = isHidden ? 'Hide Notes ▴' : 'View Notes ▾';
+                            }
+                        }
+                    }
                 });
             } else {
                 speciesEl.innerHTML = '<p style="font-size: 0.8rem; color: #999;">No details available.</p>';
             }
         } catch (error) {
-            console.error("Species fetch failed:", error);
+            console.error("Species/Comments fetch failed:", error);
             speciesEl.innerHTML = '<p style="font-size: 0.8rem; color: red;">Failed to load details.</p>';
         }
     }
