@@ -228,7 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <!-- Media/Photo Container -->
                 <div class="card-media" id="media-${list.subIds.join('_')}" data-subids='${JSON.stringify(list.subIds)}'>
-                    <div class="photo-placeholder">Checking for birding photos...</div>
                 </div>
                 
                 <!-- Map Container (Lazy loaded) -->
@@ -324,27 +323,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const contentObserver = new IntersectionObserver((entries) => {
             entries.forEach(async entry => {
                 if (entry.isIntersecting) {
-                    const el = entry.target;
-                    const idPart = el.id.split('-').slice(1).join('-'); // Handle S123 or S123_S456
+                    const card = entry.target;
                     
-                    if (el.classList.contains('lazy-map')) {
-                        const lat = parseFloat(el.getAttribute('data-lat'));
-                        const lng = parseFloat(el.getAttribute('data-lng'));
-                        renderMap(idPart, lat, lng);
-                    } else if (el.id.startsWith('species-')) {
-                        await fetchAndRenderSpecies(idPart);
-                    } else if (el.id.startsWith('media-')) {
-                        await fetchAndRenderMedia(el.id);
+                    // Trigger Map
+                    const mapEl = card.querySelector('.lazy-map');
+                    if (mapEl) {
+                        const subId = mapEl.id.replace('map-', '');
+                        const lat = parseFloat(mapEl.getAttribute('data-lat'));
+                        const lng = parseFloat(mapEl.getAttribute('data-lng'));
+                        renderMap(subId, lat, lng);
                     }
 
-                    contentObserver.unobserve(el);
+                    // Trigger Species
+                    const speciesEl = card.querySelector('[id^="species-"]');
+                    if (speciesEl) {
+                        const subId = speciesEl.id.replace('species-', '');
+                        await fetchAndRenderSpecies(subId);
+                    }
+
+                    // Trigger Media (Silent Fetch)
+                    const mediaEl = card.querySelector('[id^="media-"]');
+                    if (mediaEl) {
+                        await fetchAndRenderMedia(mediaEl.id);
+                    }
+
+                    contentObserver.unobserve(card);
                 }
             });
         }, { rootMargin: '200px' });
 
-        // Observe all lazy elements
-        document.querySelectorAll('.lazy-map, [id^="species-"], [id^="media-"]').forEach(el => {
-            contentObserver.observe(el);
+        document.querySelectorAll('.checklist-card:not(.observed)').forEach(card => {
+            card.classList.add('observed');
+            contentObserver.observe(card);
         });
     }
 function renderMap(subId, lat, lng) {
@@ -460,6 +470,7 @@ function renderMap(subId, lat, lng) {
                     </div>
                 `;
                 mediaEl.style.display = 'block';
+                mediaEl.style.margin = '1rem -1.5rem'; // Reveal with margin
             } else {
                 mediaEl.style.display = 'none';
             }
