@@ -471,17 +471,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         lightboxContent.innerHTML = assets.map(asset => {
-            const url = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/1800`;
-            const credit = `${asset.commonName} (${asset.mediaType}) © ${asset.userDisplayName || 'Birder'}`;
+            const thumbUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/1800`;
+            const videoUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/video`;
+            const audioUrl = `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/${asset.catalogId}/audio`;
+            
+            // Cleanup Label
+            const typeLabel = asset.mediaType === 'Photo' ? '' : ` (${asset.mediaType})`;
+            const credit = `${asset.commonName}${typeLabel} © ${asset.userDisplayName || 'Birder'}`;
             const mlUrl = `https://macaulaylibrary.org/asset/${asset.catalogId}`;
             
+            let mediaContent = '';
+            if (asset.mediaType === 'Video') {
+                mediaContent = `
+                    <video controls poster="${thumbUrl}" class="lightbox-video">
+                        <source src="${videoUrl}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>`;
+            } else if (asset.mediaType === 'Audio') {
+                mediaContent = `
+                    <img src="${thumbUrl}" alt="Audio Spectrogram" class="audio-spectrogram">
+                    <audio controls class="lightbox-audio">
+                        <source src="${audioUrl}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>`;
+            } else {
+                mediaContent = `<img src="${thumbUrl}" alt="${asset.commonName}">`;
+            }
+
             return `
                 <div class="lightbox-photo-item">
-                    <img src="${url}" alt="${asset.commonName}">
+                    ${mediaContent}
                     <div class="lightbox-caption">
                         <p>${credit}</p>
                         <p style="font-size: 0.75rem; margin-top: 5px;">
-                            <a href="${mlUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">View on Macaulay Library ↗</a>
+                            <a href="${mlUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">View Original on Macaulay Library ↗</a>
                         </p>
                     </div>
                 </div>

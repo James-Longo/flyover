@@ -631,7 +631,7 @@ input:focus {
     padding: 2rem;
 }
 
-.lightbox-content img {
+.lightbox-content img, .lightbox-video {
     max-width: 90vw;
     max-height: 80vh;
     width: auto;
@@ -639,6 +639,18 @@ input:focus {
     border-radius: 8px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.6);
     object-fit: contain;
+}
+
+.lightbox-audio {
+    width: 90%;
+    max-width: 400px;
+    margin-top: 1.5rem;
+    filter: invert(1); /* Matches dark mode lightbox */
+    opacity: 0.8;
+}
+
+.audio-spectrogram {
+    max-height: 50vh !important;
 }
 
 .lightbox-close {
