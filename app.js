@@ -468,6 +468,8 @@ function renderMap(subId, lat, lng) {
     const lightbox = document.getElementById('lightbox-overlay');
     const lightboxContent = document.getElementById('lightbox-content');
     const lightboxClose = document.querySelector('.lightbox-close');
+    const lightboxPrev = document.querySelector('.lightbox-prev');
+    const lightboxNext = document.querySelector('.lightbox-next');
 
     function openLightbox(elementId) {
         const assets = galleryCache.get(elementId);
@@ -486,12 +488,37 @@ function renderMap(subId, lat, lng) {
 
         lightbox.classList.add('active');
         document.body.style.overflow = 'hidden'; // Prevent scroll behind
+        lightboxContent.scrollLeft = 0; // Reset to start
     }
 
     lightboxClose.onclick = () => {
         lightbox.classList.remove('active');
         document.body.style.overflow = '';
     };
+
+    lightboxPrev.onclick = (e) => {
+        e.stopPropagation();
+        lightboxContent.scrollBy({ left: -lightboxContent.clientWidth, behavior: 'smooth' });
+    };
+
+    lightboxNext.onclick = (e) => {
+        e.stopPropagation();
+        lightboxContent.scrollBy({ left: lightboxContent.clientWidth, behavior: 'smooth' });
+    };
+
+    // Global Key Events
+    window.addEventListener('keydown', (e) => {
+        if (!lightbox.classList.contains('active')) return;
+        
+        if (e.key === 'ArrowLeft') {
+            lightboxContent.scrollBy({ left: -lightboxContent.clientWidth, behavior: 'smooth' });
+        } else if (e.key === 'ArrowRight') {
+            lightboxContent.scrollBy({ left: lightboxContent.clientWidth, behavior: 'smooth' });
+        } else if (e.key === 'Escape') {
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    });
 
     lightbox.onclick = (e) => {
         if (e.target === lightbox) {
