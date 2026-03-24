@@ -5,7 +5,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const apiInput = document.getElementById('api-key-input');
     const loginBtn = document.getElementById('login-btn');
-    const demoBtn = document.getElementById('demo-btn');
     const logoutBtn = document.getElementById('logout-btn');
     const loginScreen = document.getElementById('login-screen');
     const feedScreen = document.getElementById('feed-screen');
@@ -32,10 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             alert("Please enter a valid API key.");
         }
-    });
-
-    demoBtn.addEventListener('click', () => {
-        login(null); // Demo mode
     });
 
     logoutBtn.addEventListener('click', () => {
@@ -98,11 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             setupInfiniteScroll();
-
-            // Update stats
-            const checklistsCount = document.querySelectorAll('.checklist-card').length;
-            document.getElementById('stat-checklists').innerText = checklistsCount;
-            document.getElementById('stat-hotspots').innerText = new Set(groupedChecklists.map(c => c.locId)).size;
         } catch (error) {
             console.error("Feed load failed:", error);
             feedItems.innerHTML = `<div class="error-state">Error loading feed: ${error.message}</div>`;

@@ -12,7 +12,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐦</text></svg>">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
     <div id="app">
@@ -25,12 +25,9 @@
                 </div>
                 <p>Enter your eBird API key to view recent checklists in your area.</p>
                 <div class="input-group">
-                    <input type="password" id="api-key-input" placeholder="eBird API Token (v2)">
-                    <button id="login-btn" class="primary-btn">Let's Go</button>
-                    <a href="https://ebird.org/api/keygen" target="_blank" class="hint-link">Where do I find my API key?</a>
-                </div>
-                <div class="demo-notice">
-                    <button id="demo-btn">Or try the demo with mock data</button>
+                    <h4>eBird API Key</h4>
+                    <input type="password" id="api-key-input" placeholder="Enter your eBird API Token...">
+                    <button id="login-btn" class="primary-btn">Connect eBird</button>
                 </div>
             </div>
         </section>
@@ -48,11 +45,10 @@
 
             <main class="feed-layout">
                 <aside class="sidebar left">
-                    <div class="profile-card">
-                        <div class="avatar">👤</div>
+                    <div class="user-card">
                         <div class="user-info">
-                            <h3 id="user-name">Birder</h3>
-                            <p id="user-region">Detecting location...</p>
+                            <h3 id="user-display-name">Birder</h3>
+                            <p id="user-region">Hancock County, ME</p>
                         </div>
                     </div>
                 </aside>
@@ -78,17 +74,7 @@
                 </div>
 
                 <aside class="sidebar right">
-                    <div class="stats-card">
-                        <h3>Local Stats</h3>
-                        <div class="stat">
-                            <span class="label">Recent Checklists</span>
-                            <span class="value" id="stat-checklists">--</span>
-                        </div>
-                        <div class="stat">
-                            <span class="label">Major Hotspots</span>
-                            <span class="value" id="stat-hotspots">--</span>
-                        </div>
-                    </div>
+                    
                 </aside>
             </main>
         </section>
@@ -96,7 +82,7 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="api.js?v=3"></script>
-    <script src="app.js?v=3"></script>
+    <script src="api.js?v=4"></script>
+    <script src="app.js?v=4"></script>
 </body>
 </html>
