@@ -87,7 +87,7 @@ class EbirdService {
         if (!this.apiKey) return this.getMockChecklists();
         
         let endpoint = `/product/lists/${regionCode}`;
-        let params = { maxResults: 100 };
+        let params = { maxResults: 30 };
         
         if (date) {
             const y = date.getFullYear();

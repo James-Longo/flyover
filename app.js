@@ -258,14 +258,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Fetch checklist details for species highlights and media sequentially
-            // Sequential fetching prevents Macaulay API rate-limiting/timeouts
-            await fetchAndRenderSpecies(list.subId);
-            await fetchAndRenderMedia(list.subId);
+            // Note: We no longer fetch details/media here. 
+            // Instead, we let the setupLazyContent() observer trigger them as the user scrolls.
         }
 
-        // Initialize Observer for Lazy Loading Maps
-        setupLazyMaps();
+        // Initialize Observer for Lazy Loading Content (Maps, Photos, Highlights)
+        setupLazyContent();
     }
 
     function setupInfiniteScroll() {
@@ -310,25 +308,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function setupLazyMaps() {
-        const mapObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
+    function setupLazyContent() {
+        const contentObserver = new IntersectionObserver((entries) => {
+            entries.forEach(async entry => {
                 if (entry.isIntersecting) {
                     const el = entry.target;
-                    const subId = el.id.replace('map-', '');
-                    const lat = parseFloat(el.getAttribute('data-lat'));
-                    const lng = parseFloat(el.getAttribute('data-lng'));
+                    const subId = el.id.split('-').slice(1).join('-'); // Handle media-S123 etc.
+                    
+                    if (el.classList.contains('lazy-map')) {
+                        const lat = parseFloat(el.getAttribute('data-lat'));
+                        const lng = parseFloat(el.getAttribute('data-lng'));
+                        renderMap(subId, lat, lng);
+                    } else if (el.id.startsWith('species-')) {
+                        await fetchAndRenderSpecies(subId);
+                    } else if (el.id.startsWith('media-')) {
+                        await fetchAndRenderMedia(subId);
+                    }
 
-                    renderMap(subId, lat, lng);
-                    mapObserver.unobserve(el); // Stop observing once rendered
+                    contentObserver.unobserve(el);
                 }
             });
         }, { rootMargin: '200px' });
 
-        document.querySelectorAll('.lazy-map').forEach(el => mapObserver.observe(el));
+        // Observe all lazy elements
+        document.querySelectorAll('.lazy-map, [id^="species-"], [id^="media-"]').forEach(el => {
+            contentObserver.observe(el);
+        });
     }
-
-    function renderMap(subId, lat, lng) {
+function renderMap(subId, lat, lng) {
         // Leaflet expects the ID without the #
         const map = L.map(`map-${subId}`, {
             center: [lat, lng],
