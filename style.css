@@ -375,6 +375,21 @@ input:focus {
     color: var(--primary);
 }
 
+.map-container {
+    height: 300px;
+    width: 100%;
+    background: #f0f0f5;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+}
+
+/* Adjust Leaflet zoom buttons for cleaner look */
+.leaflet-control-zoom {
+    border: 1px solid rgba(0,0,0,0.1) !important;
+    box-shadow: none !important;
+}
+
 /* Loading Spinner */
 .loading-state {
     text-align: center;

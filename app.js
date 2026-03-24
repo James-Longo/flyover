@@ -158,6 +158,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span>🦅</span> ${list.numSpecies} Species sighted
                     </div>
                 </div>
+                <!-- Map Container -->
+                <div class="map-container" id="map-${list.subId}"></div>
                 <div class="species-list" id="species-${list.subId}">
                     <p style="font-size: 0.8rem; color: #999;">Loading highlights...</p>
                 </div>
@@ -193,7 +195,33 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Fetch checklist details for species highlights
             fetchAndRenderSpecies(list.subId);
+
+            // Initialize the map immediately
+            if (list.loc && list.loc.latitude) {
+                renderMap(list.subId, list.loc.latitude, list.loc.longitude);
+            }
         }
+    }
+
+    function renderMap(subId, lat, lng) {
+        // Leaflet expects the ID without the #
+        const map = L.map(`map-${subId}`, {
+            center: [lat, lng],
+            zoom: 13,
+            zoomControl: true,
+            dragging: true,
+            scrollWheelZoom: false // Keep feed scrolling smooth
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OSM'
+        }).addTo(map);
+
+        // Add a marker for the birding hotspot/location
+        L.marker([lat, lng]).addTo(map);
+
+        // Ensure map renders properly in case container size changed
+        setTimeout(() => map.invalidateSize(), 100);
     }
 
     async function fetchAndRenderSpecies(subId) {
