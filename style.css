@@ -405,6 +405,8 @@ input:focus {
     font-size: 0.85rem;
     color: var(--primary);
     font-weight: 700;
+    width: 40px;
+    flex-shrink: 0;
 }
 
 .note-indicator {
