@@ -801,3 +801,26 @@ input:focus {
         margin-top: 1rem;
     }
 }
+/* Hidden Debug Gateway */
+.debug-footer {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+#debug-login-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#debug-login-btn:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.05);
+}

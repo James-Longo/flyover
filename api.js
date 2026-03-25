@@ -5,26 +5,38 @@ const EBIRD_BASE_URL = '/api/ebird'; // Points to our Vercel Proxy
 
 class EbirdService {
     constructor() {
+        this.apiKey = localStorage.getItem('ebird_api_key');
         this.taxonomyMap = new Map();
         this.isLoadingTaxonomy = false;
     }
 
     setApiKey(key) {
-        // No longer needed as the proxy handles it!
+        this.apiKey = key;
+        localStorage.setItem('ebird_api_key', key);
     }
 
     async fetchJson(endpoint, params = {}) {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        // If local and we have a key, hit eBird directly
+        if (isLocal && this.apiKey) {
+            const url = new URL(`https://api.ebird.org/v2${endpoint}`);
+            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+            const response = await fetch(url, {
+                headers: { 'X-eBirdApiToken': this.apiKey }
+            });
+            if (!response.ok) throw new Error(`eBird Local API error: ${response.statusText}`);
+            return await response.json();
+        }
+
+        // Otherwise use the Vercel Proxy
         const url = new URL(EBIRD_BASE_URL, window.location.origin);
-        
-        // Pass the original eBird path to the proxy
         url.searchParams.append('path', endpoint);
-        
-        // Append all other params to the proxy request
         Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
         const response = await fetch(url);
         if (!response.ok) {
-            throw new Error(`eBird API error: ${response.statusText}`);
+            throw new Error(`Proxy error (Verify EBIRD_API_KEY is set in Vercel): ${response.statusText}`);
         }
         return await response.json();
     }

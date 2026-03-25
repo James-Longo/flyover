@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const userRegionEl = document.getElementById('user-region');
     const regionSelect = document.createElement('div'); // Will inject into sidebar
 
+    const debugLoginBtn = document.getElementById('debug-login-btn');
+
     // Initialize state
     let currentRegion = localStorage.getItem('ebird_region') || 'US-ME-009'; // Default to Penobscot, ME
     let currentCoords = { lat: 44.8016, lng: -68.7712 }; // Default to Bangor, ME
@@ -17,7 +19,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const galleryCache = new Map();
     const speciesCache = new Map();
 
+    // Check for local development key
+    const savedKey = localStorage.getItem('ebird_api_key');
+    if (savedKey) {
+        window.ebird.setApiKey(savedKey);
+    }
+
     init();
+
+    // Event Listeners
+    if (debugLoginBtn) {
+        debugLoginBtn.addEventListener('click', () => {
+            const key = prompt("Enter eBird API Key (Local Only):");
+            if (key) {
+                window.ebird.setApiKey(key);
+                window.location.reload();
+            }
+        });
+    }
 
     // Global Media Click Handler (Event Delegation for instant response)
     feedItems.addEventListener('click', (e) => {
