@@ -433,18 +433,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     const limit = showAll ? items.length : 5;
                     const itemsHtml = items.slice(0, limit).map(s => {
                         const hasSpeciesComments = s.comments && s.comments.trim().length > 0;
-                        const uniqueCommentId = `comment-${subId}-${s.speciesCode}`;
                         return `
                         <div class="species-item-wrapper">
-                            <div class="species-item" ${hasSpeciesComments ? `data-toggle="${uniqueCommentId}" style="cursor: pointer;"` : ''}>
+                            <div class="species-item">
                                 <div class="species-main-info">
                                     <span class="species-qty">${s.howMany || '1'}</span>
-                                    <span class="species-name">${s.comName} ${s.scientificName ? `<em style="font-size: 0.75rem; color: #999; margin-left: 5px;">(${s.scientificName})</em>` : ''}</span>
+                                    <span class="species-name">${s.comName}</span>
                                 </div>
-                                ${hasSpeciesComments ? '<span class="note-indicator">View Notes ▾</span>' : ''}
                             </div>
                             ${hasSpeciesComments ? `
-                                <div class="species-comment-dropdown" id="${uniqueCommentId}" style="display: none;">
+                                <div class="species-comment-box">
                                     <p>${s.comments}</p>
                                 </div>
                             ` : ''}
@@ -463,25 +461,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 speciesEl.innerHTML = renderSpeciesList(obs);
                 
-                // Interaction Logic
+                // Interaction Logic (Show All/Less only)
                 speciesEl.addEventListener('click', (e) => {
                     if (e.target.classList.contains('show-all-btn')) {
                         speciesEl.innerHTML = renderSpeciesList(obs, true);
                     } else if (e.target.classList.contains('show-less-btn')) {
                         speciesEl.innerHTML = renderSpeciesList(obs, false);
-                    } else {
-                        const speciesItem = e.target.closest('.species-item');
-                        if (speciesItem && speciesItem.dataset.toggle) {
-                            const commentId = speciesItem.dataset.toggle;
-                            const commentBox = speciesEl.querySelector(`#${commentId}`);
-                            const indicator = speciesItem.querySelector('.note-indicator');
-                            if (commentBox) {
-                                const isHidden = commentBox.style.display === 'none';
-                                commentBox.style.display = isHidden ? 'block' : 'none';
-                                speciesItem.classList.toggle('is-expanded', isHidden);
-                                if (indicator) indicator.innerText = isHidden ? 'Hide Notes ▴' : 'View Notes ▾';
-                            }
-                        }
                     }
                 });
             } else {

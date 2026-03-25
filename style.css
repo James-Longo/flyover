@@ -409,22 +409,27 @@ input:focus {
     flex-shrink: 0;
 }
 
+.species-comment-box {
+    margin-top: 4px;
+    margin-left: 52px; /* Align with species name (40px qty + 12px gap) */
+    padding-bottom: 8px;
+    border-left: 2px solid rgba(255, 255, 255, 0.1);
+    padding-left: 12px;
+}
+
+.species-comment-box p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    line-height: 1.4;
+    margin: 0;
+}
+
 .note-indicator {
     font-size: 0.75rem;
     color: var(--primary);
     font-weight: 600;
     opacity: 0.8;
-}
-
-.species-comment-dropdown {
-    padding: 0.75rem;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-    margin: 4px 0 8px 0;
-    line-height: 1.4;
-    border-left: 2px solid var(--primary);
 }
 
 .checklist-comments-box {
