@@ -140,7 +140,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Combine and Sort by Date
-            const combinedFeed = [...normalizedEbird, ...inatData].sort((a, b) => b.date - a.date);
+            const groupedInat = groupInatObservations(inatData);
+            const combinedFeed = [...normalizedEbird, ...groupedInat].sort((a, b) => b.date - a.date);
             
             // Pre-populate caches for instant loading
             combinedFeed.forEach(item => {
@@ -172,6 +173,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!group.contributors.includes(list.userDisplayName)) {
                     group.contributors.push(list.userDisplayName);
                     group.subIds.push(list.subId);
+                }
+            }
+        });
+        return Array.from(groups.values());
+    }
+
+    function groupInatObservations(observations) {
+        const groups = new Map();
+        observations.forEach(obs => {
+            // Group by user and date
+            const dateStr = obs.date.toISOString().split('T')[0]; // YYYY-MM-DD
+            const key = `inat_${obs.userDisplayName}_${dateStr}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+            
+            if (!groups.has(key)) {
+                // Initialize group with a deepish copy
+                groups.set(key, { 
+                    ...obs, 
+                    id: key, 
+                    obs: [...obs.obs], 
+                    media: [...obs.media] 
+                });
+            } else {
+                const group = groups.get(key);
+                group.obs.push(...obs.obs);
+                group.media.push(...obs.media);
+                group.numSpecies = group.obs.length;
+                
+                // Keep the most recent timestamp and location from this session
+                if (obs.date > group.date) {
+                    group.date = obs.date;
+                    group.obsDt = obs.obsDt;
+                    group.locName = obs.locName;
+                    group.loc = obs.loc;
                 }
             }
         });
@@ -318,12 +352,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Note: Parallel fetch for loadMore too
             const inatData = await window.inat.fetchObservations(currentCoords.lat, currentCoords.lng);
-            inatData.forEach(item => {
+            const groupedInat = groupInatObservations(inatData);
+            
+            groupedInat.forEach(item => {
                 galleryCache.set(`media-${item.id}`, item.media);
                 speciesCache.set(`species-${item.id}`, item.obs);
             });
 
-            const combinedFeed = [...normalizedEbird, ...inatData].sort((a, b) => b.date - a.date);
+            const combinedFeed = [...normalizedEbird, ...groupedInat].sort((a, b) => b.date - a.date);
             renderFeed(combinedFeed, false); // False = append
 
             lastLoadedDate.setDate(lastLoadedDate.getDate() - 1);
