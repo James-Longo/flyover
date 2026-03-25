@@ -182,8 +182,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function groupInatObservations(observations) {
         const groups = new Map();
         observations.forEach(obs => {
-            // Group by user and date
-            const dateStr = obs.date.toISOString().split('T')[0]; // YYYY-MM-DD
+            // Group by user and local date (avoiding UTC midnight slips)
+            const y = obs.date.getFullYear();
+            const m = String(obs.date.getMonth() + 1).padStart(2, '0');
+            const d = String(obs.date.getDate()).padStart(2, '0');
+            const dateStr = `${y}-${m}-${d}`; 
             const key = `inat_${obs.userDisplayName}_${dateStr}`.replace(/[^a-zA-Z0-9_-]/g, '_');
             
             if (!groups.has(key)) {
