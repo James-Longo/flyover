@@ -3,6 +3,10 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+    const apiInput = document.getElementById('api-key-input');
+    const loginBtn = document.getElementById('login-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    const loginScreen = document.getElementById('login-screen');
     const feedScreen = document.getElementById('feed-screen');
     const feedItems = document.getElementById('feed-items');
     const userRegionEl = document.getElementById('user-region');
@@ -17,13 +21,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const galleryCache = new Map();
     const speciesCache = new Map();
 
-    // Check for local development key
     const savedKey = localStorage.getItem('ebird_api_key');
     if (savedKey) {
-        window.ebird.setApiKey(savedKey);
+        login(savedKey);
+    } else {
+        loginScreen.classList.add('active'); // Only show if not logged in
     }
 
-    init();
+    // Event Listeners
+    loginBtn.addEventListener('click', () => {
+        const key = apiInput.value.trim();
+        if (key) {
+            login(key);
+        } else {
+            alert("Please enter a valid API key.");
+        }
+    });
+
+    logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('ebird_api_key');
+        window.location.reload();
+    });
 
     // Global Media Click Handler (Event Delegation for instant response)
     feedItems.addEventListener('click', (e) => {
@@ -33,19 +51,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function init() {
-        // Strictly wait for location before doing anything
+    async function login(key) {
+        if (key) {
+            localStorage.setItem('ebird_api_key', key);
+            window.ebird.setApiKey(key);
+        }
+
+        loginScreen.classList.remove('active');
+        feedScreen.classList.add('active');
+
+        // Try to get location
         detectLocation();
+
+        // Initial load
+        loadFeed();
     }
 
 
     async function detectLocation() {
-        if (!navigator.geolocation) {
-            feedItems.innerHTML = '<div class="empty-state">Geolocation is not supported by your browser.</div>';
-            return;
-        }
-
-        feedItems.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Detecting your location...</p></div>';
+        if (!navigator.geolocation) return;
 
         navigator.geolocation.getCurrentPosition(async (position) => {
             const { latitude, longitude } = position.coords;
@@ -66,21 +90,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (foundRegion) {
                         currentRegion = foundRegion;
                         localStorage.setItem('ebird_region', currentRegion);
-                        // ONLY NOW do we load the feed
                         loadFeed();
-                    } else {
-                        feedItems.innerHTML = '<div class="empty-state">Could not determine eBird region for this location.</div>';
                     }
-                } else {
-                    feedItems.innerHTML = '<div class="empty-state">Could not determine county/state for this location.</div>';
                 }
             } catch (error) {
                 console.warn("Reverse geocode failed:", error);
-                feedItems.innerHTML = '<div class="empty-state">Location lookup failed. Please check your internet connection.</div>';
             }
-        }, (error) => {
-            feedItems.innerHTML = '<div class="empty-state">Location access denied or unavailable. Please enable location to discover wildlife around you.</div>';
-            userRegionEl.innerText = 'Location Unknown';
         });
     }
 
