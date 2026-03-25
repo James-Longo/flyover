@@ -1,33 +1,32 @@
 /**
  * eBird API Service Layer
  */
-
-const EBIRD_BASE_URL = 'https://api.ebird.org/v2';
+const EBIRD_BASE_URL = '/api/ebird'; // Points to our Vercel Proxy
 
 class EbirdService {
-    constructor(apiKey = null) {
-        this.apiKey = apiKey;
+    constructor() {
         this.taxonomyMap = new Map();
         this.isLoadingTaxonomy = false;
     }
 
     setApiKey(key) {
-        this.apiKey = key;
+        // No longer needed as the proxy handles it!
     }
 
     async fetchJson(endpoint, params = {}) {
-        const url = new URL(`${EBIRD_BASE_URL}${endpoint}`);
+        const url = new URL(EBIRD_BASE_URL, window.location.origin);
+        
+        // Pass the original eBird path to the proxy
+        url.searchParams.append('path', endpoint);
+        
+        // Append all other params to the proxy request
         Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-        const headers = {
-            'X-eBirdApiToken': this.apiKey
-        };
-
-        const response = await fetch(url, { headers });
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`eBird API error: ${response.statusText}`);
         }
-        return response.json();
+        return await response.json();
     }
 
     /**

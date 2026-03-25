@@ -3,10 +3,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    const apiInput = document.getElementById('api-key-input');
-    const loginBtn = document.getElementById('login-btn');
-    const logoutBtn = document.getElementById('logout-btn');
-    const loginScreen = document.getElementById('login-screen');
     const feedScreen = document.getElementById('feed-screen');
     const feedItems = document.getElementById('feed-items');
     const userRegionEl = document.getElementById('user-region');
@@ -21,27 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const galleryCache = new Map();
     const speciesCache = new Map();
 
-    const savedKey = localStorage.getItem('ebird_api_key');
-    if (savedKey) {
-        login(savedKey);
-    } else {
-        loginScreen.classList.add('active'); // Only show if not logged in
-    }
-
-    // Event Listeners
-    loginBtn.addEventListener('click', () => {
-        const key = apiInput.value.trim();
-        if (key) {
-            login(key);
-        } else {
-            alert("Please enter a valid API key.");
-        }
-    });
-
-    logoutBtn.addEventListener('click', () => {
-        localStorage.removeItem('ebird_api_key');
-        window.location.reload();
-    });
+    init();
 
     // Global Media Click Handler (Event Delegation for instant response)
     feedItems.addEventListener('click', (e) => {
@@ -51,19 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function login(key) {
-        if (key) {
-            localStorage.setItem('ebird_api_key', key);
-            window.ebird.setApiKey(key);
-        }
-
-        loginScreen.classList.remove('active');
-        feedScreen.classList.add('active');
-
-        // Try to get location
+    async function init() {
+        // Jump straight to feed
         detectLocation();
-
-        // Initial load
         loadFeed();
     }
 
