@@ -8,8 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const userRegionEl = document.getElementById('user-region');
     const regionSelect = document.createElement('div'); // Will inject into sidebar
 
-    const debugLoginBtn = document.getElementById('debug-login-btn');
-
     // Initialize state
     let currentRegion = localStorage.getItem('ebird_region') || 'US-ME-009'; // Default to Penobscot, ME
     let currentCoords = { lat: 44.8016, lng: -68.7712 }; // Default to Bangor, ME
@@ -27,17 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     init();
 
-    // Event Listeners
-    if (debugLoginBtn) {
-        debugLoginBtn.addEventListener('click', () => {
-            const key = prompt("Enter eBird API Key (Local Only):");
-            if (key) {
-                window.ebird.setApiKey(key);
-                window.location.reload();
-            }
-        });
-    }
-
     // Global Media Click Handler (Event Delegation for instant response)
     feedItems.addEventListener('click', (e) => {
         const mediaCard = e.target.closest('.card-media');
@@ -47,14 +34,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function init() {
-        // Jump straight to feed
+        // Strictly wait for location before doing anything
         detectLocation();
-        loadFeed();
     }
 
 
     async function detectLocation() {
-        if (!navigator.geolocation) return;
+        if (!navigator.geolocation) {
+            feedItems.innerHTML = '<div class="empty-state">Geolocation is not supported by your browser.</div>';
+            return;
+        }
+
+        feedItems.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Detecting your location...</p></div>';
 
         navigator.geolocation.getCurrentPosition(async (position) => {
             const { latitude, longitude } = position.coords;
@@ -75,12 +66,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (foundRegion) {
                         currentRegion = foundRegion;
                         localStorage.setItem('ebird_region', currentRegion);
+                        // ONLY NOW do we load the feed
                         loadFeed();
+                    } else {
+                        feedItems.innerHTML = '<div class="empty-state">Could not determine eBird region for this location.</div>';
                     }
+                } else {
+                    feedItems.innerHTML = '<div class="empty-state">Could not determine county/state for this location.</div>';
                 }
             } catch (error) {
                 console.warn("Reverse geocode failed:", error);
+                feedItems.innerHTML = '<div class="empty-state">Location lookup failed. Please check your internet connection.</div>';
             }
+        }, (error) => {
+            feedItems.innerHTML = '<div class="empty-state">Location access denied or unavailable. Please enable location to discover wildlife around you.</div>';
+            userRegionEl.innerText = 'Location Unknown';
         });
     }
 
