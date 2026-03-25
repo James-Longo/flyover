@@ -123,18 +123,59 @@ class EbirdService {
                 locName: d.locName || (d.loc && d.loc.name) || "Unknown Location",
                 userDisplayName: d.userDisplayName,
                 comments: d.comments || "",
-                obs: (d.obs || d.observations || []).map(o => ({
-                    comName: o.comName || this.getSpeciesName(o.speciesCode),
-                    scientificName: o.sciName || o.scientificName || "",
-                    howMany: o.howMany || o.count || o.howManyStr || "1",
-                    speciesCode: o.speciesCode,
-                    comments: o.comments || ""
+                obs: await Promise.all((d.obs || d.observations || []).map(async o => {
+                    const comName = o.comName || o.commonName || await this.getSpeciesName(o.speciesCode);
+                    const scientificName = o.sciName || o.scientificName || await this.getSpeciesScientificName(o.speciesCode);
+                    return {
+                        comName,
+                        scientificName,
+                        howMany: o.howMany || o.count || o.howManyStr || "1",
+                        speciesCode: o.speciesCode,
+                        comments: o.comments || ""
+                    };
                 }))
             };
         } catch (e) {
             console.error("Error in getChecklistDetails:", e);
             throw e;
         }
+    }
+
+    /**
+     * Get species name with async taxonomic fallback
+     */
+    async getSpeciesName(code) {
+        if (this.taxonomyMap.has(code)) return this.taxonomyMap.get(code);
+        
+        // Try fallback fetch from official taxonomy reference
+        try {
+            const tax = await this.fetchJson(`/ref/taxonomy/ebird`, { species: code, fmt: 'json' });
+            if (tax && tax.length > 0) {
+                const name = tax[0].comName;
+                this.taxonomyMap.set(code, name);
+                return name;
+            }
+        } catch (e) {
+            console.warn(`Taxonomy fallback failed for ${code}:`, e);
+        }
+        return code;
+    }
+
+    /**
+     * Get scientific name with async taxonomic fallback
+     */
+    async getSpeciesScientificName(code) {
+        // Sci names aren't currently stored in the map, but we can check if they are
+        // For now, try fallback fetch or return empty
+        try {
+            const tax = await this.fetchJson(`/ref/taxonomy/ebird`, { species: code, fmt: 'json' });
+            if (tax && tax.length > 0) {
+                return tax[0].sciName;
+            }
+        } catch (e) {
+            console.warn(`Taxonomy fallback failed for ${code}:`, e);
+        }
+        return "";
     }
 
     /**
