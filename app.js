@@ -258,17 +258,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const isInat = list.source === 'inaturalist';
-            const sourceClass = isInat ? 'source-badge-inat' : 'source-badge-ebird';
-            const sourceLabel = isInat ? 'iNaturalist' : 'eBird';
 
             card.innerHTML = `
                 <div class="card-header">
                     <div class="author-circle">${mainAuthor.charAt(0)}</div>
                     <div class="checklist-meta">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <h4>${authorText}</h4>
-                            <span class="source-badge ${sourceClass}">${sourceLabel}</span>
-                        </div>
+                        <h4>${authorText}</h4>
                         <p>${dateStr} • <a href="https://www.google.com/maps/search/?api=1&query=${list.loc.latitude},${list.loc.longitude}" target="_blank" class="location-link">${list.locName}</a></p>
                     </div>
                 </div>
@@ -284,34 +279,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="species-list" id="species-${list.id}" data-id="${list.id}" data-source="${list.source}">
                     <p style="font-size: 0.8rem; color: #999;">Loading highlights...</p>
                 </div>
-                <div class="card-footer">
-                    <button class="action-btn kudos-btn" data-id="${list.id}"><span>❤️</span> <span class="label">Kudos</span></button>
-                    <button class="action-btn comment-btn"><span>💬</span> Comment</button>
-                </div>
             `;
-
-            feedItems.appendChild(card);
-
-            // Interaction Listeners
-            const kudosBtn = card.querySelector('.kudos-btn');
-            kudosBtn.addEventListener('click', () => {
-                kudosBtn.classList.toggle('active');
-                const label = kudosBtn.querySelector('.label');
-                if (kudosBtn.classList.contains('active')) {
-                    kudosBtn.style.color = 'var(--primary)';
-                    label.innerText = 'Kicked it!';
-                } else {
-                    kudosBtn.style.color = '';
-                    label.innerText = 'Kudos';
-                }
-            });
-
-            const commentBtn = card.querySelector('.comment-btn');
-            commentBtn.addEventListener('click', () => {
-                const comment = prompt("Add a comment to this sighting:");
-                if (comment) alert("Comment saved (locally)!");
-            });
-        }
+                
+                feedItems.appendChild(card);
+            }
 
         setupLazyContent();
     }

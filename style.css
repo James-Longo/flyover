@@ -1,7 +1,6 @@
 :root {
-    --primary: #fc4c02;
-    /* Strava Orange-ish */
-    --primary-dark: #e34402;
+    --primary: #16a34a; /* Vibrant Green */
+    --primary-dark: #15803d;
     --bg: #f5f5f8;
     --card-bg: #ffffff;
     --text-main: #242428;
@@ -100,17 +99,6 @@ input[type="password"] {
     transition: all 0.2s;
 }
 
-.source-badge-ebird {
-    background: rgba(0, 85, 150, 0.1) !important;
-    color: #4da3ff !important;
-    border: 1px solid rgba(0, 85, 150, 0.2) !important;
-}
-
-.source-badge-inat {
-    background: rgba(116, 172, 0, 0.1) !important;
-    color: #a3e033 !important;
-    border: 1px solid rgba(116, 172, 0, 0.2) !important;
-}
 
 input:focus {
     outline: none;
@@ -303,10 +291,6 @@ input:focus {
 }
 
 /* Species List Body View */
-.species-list {
-    padding: 0 1.5rem 1.5rem 1.5rem;
-    border-bottom: 1px solid var(--border);
-}
 
 .card-header {
     padding: 1rem 1.5rem;
@@ -361,7 +345,7 @@ input:focus {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    background: #fff4f0;
+    background: #f0fdf4;
     color: var(--primary);
     padding: 0.25rem 0.75rem;
     border-radius: 20px;
@@ -448,28 +432,6 @@ input:focus {
     margin: 0;
 }
 
-.card-footer {
-    padding: 0.75rem 1.5rem;
-    border-top: 1px solid var(--border);
-    display: flex;
-    gap: 1rem;
-}
-
-.action-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-weight: 500;
-    font-size: 0.9rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-
-.action-btn:hover {
-    color: var(--primary);
-}
 
 /* Feed Sidebar Fixes if needed */
 
