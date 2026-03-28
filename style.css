@@ -228,10 +228,6 @@ input:focus {
     text-align: center;
 }
 
-.avatar {
-    font-size: 3rem;
-    margin-bottom: 0.5rem;
-}
 
 .user-info h3 {
     font-weight: 700;
@@ -299,16 +295,6 @@ input:focus {
     align-items: center;
 }
 
-.author-circle {
-    width: 40px;
-    height: 40px;
-    background: #f0f0f5;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-}
 
 .checklist-meta h4 {
     font-weight: 700;
@@ -351,6 +337,12 @@ input:focus {
     border-radius: 20px;
     font-weight: 600;
     font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.obs-count:has(a):hover {
+    background: #dcfce7;
+    transform: translateY(-1px);
 }
 
 .species-list {
@@ -417,11 +409,37 @@ input:focus {
 }
 
 .checklist-comments-box {
-    background: rgba(255, 255, 255, 0.03);
-    padding: 1rem;
+    background: rgba(0, 0, 0, 0.03);
+    padding: 0.85rem 1rem;
     border-radius: 12px;
     margin-bottom: 1rem;
-    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-left: 3px solid var(--border);
+}
+
+.effort-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.protocol-badge {
+    background: var(--primary);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+}
+
+.effort-pill {
+    color: var(--text-muted);
+    background: #f0f0f5;
+    padding: 2px 8px;
+    border-radius: 4px;
 }
 
 .checklist-comments-box .comment-text {

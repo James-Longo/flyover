@@ -286,7 +286,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             card.innerHTML = `
                 <div class="card-header">
-                    <div class="author-circle">${mainAuthor.charAt(0)}</div>
                     <div class="checklist-meta">
                         <h4>${authorText}</h4>
                         <p>${dateStr} • <a href="https://www.google.com/maps/search/?api=1&query=${list.loc.latitude},${list.loc.longitude}" target="_blank" class="location-link">${list.locName}</a></p>
@@ -294,7 +293,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="card-summary">
                     <div class="obs-count">
-                        <span>${isInat ? '🌿' : '🐦'}</span> ${list.numSpecies} ${isInat ? 'Observation' : 'Species sighted'}
+                        ${isInat ? 
+                            `<span>🌿</span> ${list.numSpecies} Observation` : 
+                            `<a href="https://ebird.org/checklist/${list.id}" target="_blank" style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;"><span>🐦</span> ${list.numSpecies} Species sighted</a>`}
                     </div>
                 </div>
                 <!-- Media/Photo Container -->
@@ -414,6 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             let obs = [];
             let checklistComments = '';
+            let effortInfo = null;
             const subId = speciesEl.dataset.id;
             const elementId = speciesEl.id;
 
@@ -423,12 +425,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 const details = await window.ebird.getChecklistDetails(subId);
                 obs = details.obs || [];
                 checklistComments = details.comments || '';
+                effortInfo = details;
             }
 
-            if (obs.length > 0 || checklistComments) {
+            if (obs.length > 0 || checklistComments || effortInfo) {
                 const renderSpeciesList = (items, showAll = false) => {
                     let html = '';
                     
+                    // 0. Effort Info (eBird only)
+                    if (effortInfo && effortInfo.protocolName) {
+                        const dist = effortInfo.effortDistanceMiles || (effortInfo.effortDistanceKm ? (effortInfo.effortDistanceKm * 0.621371).toFixed(1) : null);
+                        html += `
+                            <div class="effort-summary">
+                                ${effortInfo.numObservers > 1 ? `<span class="effort-pill">Observers: ${effortInfo.numObservers}</span>` : ''}
+                                ${effortInfo.durationMin ? `<span class="effort-pill">Duration: ${effortInfo.durationMin} min</span>` : ''}
+                                ${dist ? `<span class="effort-pill">Distance: ${dist} mi</span>` : ''}
+                            </div>
+                        `;
+                    }
+
                     // 1. Checklist-level Comments
                     if (checklistComments) {
                         html += `

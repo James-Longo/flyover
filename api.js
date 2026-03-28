@@ -123,6 +123,12 @@ class EbirdService {
                 locName: d.locName || (d.loc && d.loc.name) || "Unknown Location",
                 userDisplayName: d.userDisplayName,
                 comments: d.comments || "",
+                // Effort info
+                protocolName: d.protocolName || d.protocolId || "Traveling",
+                numObservers: d.numObservers || 1,
+                durationMin: d.durationHrs ? Math.round(d.durationHrs * 60) : (d.durationMin || null),
+                effortDistanceKm: d.effortDistanceKm || null,
+                effortDistanceMiles: d.effortDistanceMiles || null,
                 obs: await Promise.all((d.obs || d.observations || []).map(async o => {
                     const comName = o.comName || o.commonName || await this.getSpeciesName(o.speciesCode);
                     const scientificName = o.sciName || o.scientificName || await this.getSpeciesScientificName(o.speciesCode);
