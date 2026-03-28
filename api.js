@@ -318,6 +318,39 @@ class InaturalistService {
             media: [...photos, ...sounds]
         };
     }
+
+    async getDailyStats(lat, lng, radius = 20) {
+        const url = new URL(`${INAT_BASE_URL}/observations/species_counts`);
+        url.searchParams.append('lat', lat);
+        url.searchParams.append('lng', lng);
+        url.searchParams.append('radius', radius);
+        
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        url.searchParams.append('observed_on', `${y}-${m}-${d}`);
+
+        const response = await fetch(url);
+        if (!response.ok) return { numSpecies: 0, numObservations: 0 };
+        const data = await response.json();
+        const numSpecies = data.total_results || 0;
+        
+        // Also get total observation count
+        const obsUrl = new URL(`${INAT_BASE_URL}/observations`);
+        obsUrl.searchParams.append('lat', lat);
+        obsUrl.searchParams.append('lng', lng);
+        obsUrl.searchParams.append('radius', radius);
+        obsUrl.searchParams.append('observed_on', `${y}-${m}-${d}`);
+        obsUrl.searchParams.append('per_page', 0);
+        const obsResp = await fetch(obsUrl);
+        const obsData = await obsResp.json();
+
+        return {
+            numSpecies: numSpecies,
+            numObservations: obsData.total_results || 0
+        };
+    }
 }
 
 window.inat = new InaturalistService();

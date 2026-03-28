@@ -9,12 +9,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginScreen = document.getElementById('login-screen');
     const feedScreen = document.getElementById('feed-screen');
     const feedItems = document.getElementById('feed-items');
-    const userRegionEl = document.getElementById('user-region');
     const regionSelect = document.createElement('div'); // Will inject into sidebar
 
     // Initialize state
-    let currentRegion = localStorage.getItem('ebird_region') || 'US-ME-009'; // Default to Penobscot, ME
-    let currentCoords = { lat: 44.8016, lng: -68.7712 }; // Default to Bangor, ME
+    let currentRegion = localStorage.getItem('ebird_region') || 'US-ME-009'; // Default Hancock, ME
+    let currentRegionName = localStorage.getItem('ebird_region_name') || 'Hancock, Maine';
+    let currentCoords = { lat: 44.4759, lng: -68.4371 }; // Fallback
     let isLoadingMore = false;
     let lastLoadedDate = new Date();
     let scrollObserver = null;
@@ -102,7 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const state = geoData.address.state;
                 
                 if (county && state) {
-                    userRegionEl.innerText = `${county}, ${state}`;
+                    currentRegionName = `${county}, ${state}`;
+                    localStorage.setItem('ebird_region_name', currentRegionName);
                     
                     const foundRegion = await findEbirdRegion(county, state);
                     if (foundRegion) {
@@ -243,13 +244,22 @@ document.addEventListener('DOMContentLoaded', () => {
     async function updateRegionalStats() {
         try {
             // Stats should follow the currently detected county/region code
-            const stats = await window.ebird.getRegionalStats(currentRegion);
+            const [ebirdStats, inatStats] = await Promise.all([
+                window.ebird.getRegionalStats(currentRegion),
+                window.inat.getDailyStats(currentCoords.lat, currentCoords.lng)
+            ]);
             
-            document.getElementById('stat-checklists').innerText = stats.numChecklists || 0;
-            document.getElementById('stat-species').innerText = stats.numSpecies || 0;
-            document.getElementById('stat-contributors').innerText = stats.numContributors || 0;
-        } catch (e) {
-            console.warn("Could not update local stats:", e);
+            document.getElementById('stats-ebird-lists').innerText = ebirdStats.numChecklists || 0;
+            document.getElementById('stats-ebird-species').innerText = ebirdStats.numSpecies || 0;
+            document.getElementById('stats-inat-obs').innerText = inatStats.numObservations || 0;
+            document.getElementById('stats-inat-species').innerText = inatStats.numSpecies || 0;
+
+            const scopeText = document.getElementById('stats-scope-text');
+            if (scopeText) {
+                scopeText.innerText = `eBird: ${currentRegionName || 'Local County'} • iNat: 20km Radius`;
+            }
+        } catch (error) {
+            console.warn("Failed to update regional stats:", error);
         }
     }
 

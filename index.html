@@ -51,26 +51,25 @@
 
             <main class="feed-layout">
                 <aside class="sidebar left">
-                    <div class="user-card">
-                        <div class="user-info">
-                            <h3 id="user-display-name">Naturalist</h3>
-                            <p id="user-region">Hancock County, ME</p>
-                        </div>
-                    </div>
                     <div class="stats-card">
-                        <h3>Today's Activity</h3>
+                        <h3 style="margin-bottom: 2px;">Today's Activity</h3>
+                        <p id="stats-scope-text" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1.25rem;">Detecting area...</p>
                         <div class="stat-grid">
                             <div class="stat-item">
-                                <span class="stat-val" id="stat-checklists">--</span>
-                                <span class="stat-label">Checklists</span>
+                                <span class="stat-val" id="stats-ebird-lists">--</span>
+                                <span class="stat-label">eBird Lists</span>
                             </div>
                             <div class="stat-item">
-                                <span class="stat-val" id="stat-species">--</span>
-                                <span class="stat-label">Species</span>
+                                <span class="stat-val" id="stats-ebird-species">--</span>
+                                <span class="stat-label">eBird Spp</span>
                             </div>
                             <div class="stat-item">
-                                <span class="stat-val" id="stat-contributors">--</span>
-                                <span class="stat-label">Birders</span>
+                                <span class="stat-val" id="stats-inat-obs">--</span>
+                                <span class="stat-label">iNat Obs</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-val" id="stats-inat-species">--</span>
+                                <span class="stat-label">iNat Spp</span>
                             </div>
                         </div>
                     </div>
