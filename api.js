@@ -249,14 +249,21 @@ window.ebird = new EbirdService();
 const INAT_BASE_URL = 'https://api.inaturalist.org/v1';
 
 class InaturalistService {
-    async fetchObservations(lat, lng, radius = 20) {
+    async fetchObservations(lat, lng, radius = 20, date = null) {
         const url = new URL(`${INAT_BASE_URL}/observations`);
         url.searchParams.append('lat', lat);
         url.searchParams.append('lng', lng);
         url.searchParams.append('radius', radius);
-        url.searchParams.append('per_page', 30);
-        url.searchParams.append('order_by', 'created_at');
+        url.searchParams.append('per_page', 50); // Increased limit as we filter by day
+        url.searchParams.append('order_by', 'observed_on');
         url.searchParams.append('order', 'desc');
+
+        if (date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            url.searchParams.append('observed_on', `${y}-${m}-${d}`);
+        }
 
         const response = await fetch(url);
         if (!response.ok) {

@@ -20,6 +20,24 @@ document.addEventListener('DOMContentLoaded', () => {
     let scrollObserver = null;
     const galleryCache = new Map();
     const speciesCache = new Map();
+    const seenIds = new Set(); // Track unique sightings to avoid UI ghosts
+
+    // Shared Observer for lazy card content (Species & Media)
+    const lazyObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const card = entry.target;
+                
+                const speciesEl = card.querySelector('.species-list');
+                if (speciesEl) fetchAndRenderSpecies(speciesEl, speciesEl.dataset.source);
+
+                const mediaEl = card.querySelector('.card-media');
+                if (mediaEl) fetchAndRenderMedia(mediaEl, mediaEl.dataset.source);
+
+                lazyObserver.unobserve(card);
+            }
+        });
+    }, { rootMargin: '200px' });
 
     const savedKey = localStorage.getItem('ebird_api_key');
     if (savedKey) {
@@ -125,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Parallel Fetch
             const [ebirdData, inatData] = await Promise.all([
                 window.ebird.getRecentChecklists(currentRegion),
-                window.inat.fetchObservations(currentCoords.lat, currentCoords.lng)
+                window.inat.fetchObservations(currentCoords.lat, currentCoords.lng, 20, lastLoadedDate)
             ]);
 
             // Normalize eBird sightings to match unified format
@@ -140,8 +158,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Combine and Sort by Date
+            // Combine, Sort, and Filter Duplicates
             const groupedInat = groupInatObservations(inatData);
-            const combinedFeed = [...normalizedEbird, ...groupedInat].sort((a, b) => b.date - a.date);
+            const combinedFeed = [...normalizedEbird, ...groupedInat]
+                .filter(item => {
+                    if (seenIds.has(item.id)) return false;
+                    seenIds.add(item.id);
+                    return true;
+                })
+                .sort((a, b) => b.date - a.date);
             
             // Pre-populate caches for instant loading
             combinedFeed.forEach(item => {
@@ -311,32 +336,63 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isLoadingMore) return;
         isLoadingMore = true;
 
+        let itemsFound = 0;
+        let daysTried = 0;
+        const MAX_DAYS = 7; // Safety cap to avoid infinite loops on empty regions
+
         try {
-            console.log(`Loading sightings for: ${lastLoadedDate.toDateString()}`);
-            const rawChecklists = await window.ebird.getRecentChecklists(currentRegion, lastLoadedDate);
-            const normalizedEbird = groupChecklists(rawChecklists).map(list => {
-                const dateStr = list.obsTime ? `${list.obsDt} ${list.obsTime}` : list.obsDt;
-                return {
-                    source: 'ebird',
-                    id: list.subId,
-                    date: new Date(dateStr.replace(/-/g, "/")),
-                    ...list
-                };
-            });
+            while (itemsFound === 0 && daysTried < MAX_DAYS) {
+                console.log(`Loading sightings for: ${lastLoadedDate.toDateString()}`);
+                
+                const [rawChecklists, inatData] = await Promise.all([
+                    window.ebird.getRecentChecklists(currentRegion, lastLoadedDate),
+                    window.inat.fetchObservations(currentCoords.lat, currentCoords.lng, 20, lastLoadedDate)
+                ]);
 
-            // Note: Parallel fetch for loadMore too
-            const inatData = await window.inat.fetchObservations(currentCoords.lat, currentCoords.lng);
-            const groupedInat = groupInatObservations(inatData);
-            
-            groupedInat.forEach(item => {
-                galleryCache.set(`media-${item.id}`, item.media);
-                speciesCache.set(`species-${item.id}`, item.obs);
-            });
+                const normalizedEbird = groupChecklists(rawChecklists).map(list => {
+                    const dateStr = list.obsTime ? `${list.obsDt} ${list.obsTime}` : list.obsDt;
+                    return {
+                        source: 'ebird',
+                        id: list.subId,
+                        date: new Date(dateStr.replace(/-/g, "/")),
+                        ...list
+                    };
+                });
 
-            const combinedFeed = [...normalizedEbird, ...groupedInat].sort((a, b) => b.date - a.date);
-            renderFeed(combinedFeed, false); // False = append
+                const groupedInat = groupInatObservations(inatData);
+                
+                // Merge and filter
+                const combinedFeed = [...normalizedEbird, ...groupedInat]
+                    .filter(item => {
+                        if (seenIds.has(item.id)) return false;
+                        seenIds.add(item.id);
+                        return true;
+                    })
+                    .sort((a, b) => b.date - a.date);
 
-            lastLoadedDate.setDate(lastLoadedDate.getDate() - 1);
+                if (combinedFeed.length > 0) {
+                    itemsFound = combinedFeed.length;
+
+                    // Pre-populate caches for instant loading
+                    combinedFeed.forEach(item => {
+                        if (item.source === 'inaturalist') {
+                            galleryCache.set(`media-${item.id}`, item.media);
+                            speciesCache.set(`species-${item.id}`, item.obs);
+                        }
+                    });
+
+                    renderFeed(combinedFeed, false); // Append
+                }
+
+                // Always decrement the date for the next attempt
+                lastLoadedDate.setDate(lastLoadedDate.getDate() - 1);
+                daysTried++;
+
+                // If we found items or reached the cap, we stop the loop
+                if (itemsFound > 0) break;
+                
+                console.log(`No new items for ${lastLoadedDate.toDateString()}, trying previous day...`);
+            }
         } catch (error) {
             console.warn("Infinite scroll error:", error);
         } finally {
@@ -345,40 +401,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupLazyContent() {
-        const contentObserver = new IntersectionObserver((entries) => {
-            entries.forEach(async entry => {
-                if (entry.isIntersecting) {
-                    const card = entry.target;
-                    
-                    const speciesEl = card.querySelector('.species-list');
-                    if (speciesEl) {
-                        await fetchAndRenderSpecies(speciesEl.id, speciesEl.dataset.source);
-                    }
-
-                    const mediaEl = card.querySelector('.card-media');
-                    if (mediaEl) {
-                        await fetchAndRenderMedia(mediaEl.id, mediaEl.dataset.source);
-                    }
-
-                    contentObserver.unobserve(card);
-                }
-            });
-        }, { rootMargin: '200px' });
-
         document.querySelectorAll('.checklist-card:not(.observed)').forEach(card => {
             card.classList.add('observed');
-            contentObserver.observe(card);
+            lazyObserver.observe(card);
         });
     }
 
-    async function fetchAndRenderSpecies(elementId, source) {
-        const speciesEl = document.getElementById(elementId);
-        if (!speciesEl) return;
+    async function fetchAndRenderSpecies(speciesEl, source) {
+        if (!speciesEl || speciesEl.dataset.loaded) return;
+        speciesEl.dataset.loaded = "true";
 
         try {
             let obs = [];
             let checklistComments = '';
-            const subId = elementId.replace('species-', '');
+            const subId = speciesEl.dataset.id;
+            const elementId = speciesEl.id;
 
             if (source === 'inaturalist') {
                 obs = speciesCache.get(elementId) || [];
@@ -445,15 +482,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Species/Comments fetch failed:", error);
-            speciesEl.innerHTML = '<p style="font-size: 0.8rem; color: red;">Failed to load details.</p>';
+            speciesEl.innerHTML = '<p style="font-size: 0.8rem; color: #16a34a;">No highlights found.</p>';
         }
     }
 
-    async function fetchAndRenderMedia(elementId, source) {
-        const mediaEl = document.getElementById(elementId);
-        if (!mediaEl) return;
+    async function fetchAndRenderMedia(mediaEl, source) {
+        if (!mediaEl || mediaEl.dataset.loaded) return;
+        mediaEl.dataset.loaded = "true";
         
         let uniqueAssets = [];
+        const elementId = mediaEl.id;
 
         if (source === 'inaturalist') {
             uniqueAssets = galleryCache.get(elementId) || [];
@@ -489,8 +527,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const creditText = source === 'inaturalist' 
-                    ? `${photo.commonName} © ${photo.userDisplayName || 'iNaturalist Observer'}`
-                    : `${photo.commonName} © ${photo.userDisplayName || 'Birder'}; Cornell Lab | Macaulay Library`;
+                    ? `${photo.commonName} © ${photo.userDisplayName || 'Observer'}`
+                    : `${photo.commonName} © ${photo.userDisplayName || 'Naturalist'}; Cornell Lab | Macaulay Library`;
                 
                 let badge = '';
                 if (photo.mediaType === 'Video') badge = '<div class="media-badge video-badge">🎥 Video</div>';
@@ -565,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Cleanup Label
             const typeLabel = asset.mediaType === 'Photo' ? '' : ` (${asset.mediaType})`;
-            const credit = `${asset.commonName}${typeLabel} © ${asset.userDisplayName || 'Birder'}`;
+            const credit = `${asset.commonName}${typeLabel} © ${asset.userDisplayName || 'Naturalist'}`;
             
             let mediaContent = '';
             if (asset.mediaType === 'Video' || (asset.mediaType === 'Audio' && !isInat)) {
