@@ -28,18 +28,12 @@
                 <div class="header-content">
                     <div class="logo-small">🐦 Flyover</div>
                     
-                    <div class="search-container">
-                        <input type="text" id="location-search" placeholder="City, county, or landmark..." autocomplete="off">
-                        <button id="search-btn">Search</button>
-                        <button id="gps-btn" title="Use my current location">Use My Location</button>
-                        <div id="search-results" class="search-results"></div>
-                    </div>
-
                     <nav class="main-nav">
                         <button id="logout-btn" style="display: none;">Disconnect eBird</button>
                     </nav>
                 </div>
             </header>
+
 
             <main class="feed-layout">
                 <aside class="sidebar left">
@@ -119,6 +113,28 @@
         <div class="lightbox-nav lightbox-next">&rsaquo;</div>
         <div class="lightbox-content" id="lightbox-content">
             <!-- Photos will wrap in here -->
+        </div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <button id="fab-location" class="fab" title="Change Location">🗺️</button>
+
+    <!-- Location Modal -->
+    <div id="location-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal">&times;</button>
+            <h2>Change Location</h2>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">Explore sightings in a different area.</p>
+            
+            <div class="search-container modal-search">
+                <input type="text" id="location-search" placeholder="City, county, or landmark..." autocomplete="off">
+                <button id="search-btn">Search</button>
+                <div id="search-results" class="search-results"></div>
+            </div>
+
+            <div style="margin-top: 1.5rem; text-align: center;">
+                <button id="gps-btn" class="primary-btn" style="width: 100%;">Use My Current Location</button>
+            </div>
         </div>
     </div>
 

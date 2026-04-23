@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchBtn = document.getElementById('search-btn');
     const gpsBtn = document.getElementById('gps-btn');
     const searchResults = document.getElementById('search-results');
+    const fabLocation = document.getElementById('fab-location');
+    const locationModal = document.getElementById('location-modal');
+    const closeModal = document.querySelector('.close-modal');
     const regionSelect = document.createElement('div'); // Will inject into sidebar
 
     // Initialize state
@@ -80,6 +83,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     gpsBtn.addEventListener('click', () => detectLocation(true));
+
+    // Modal Logic
+    fabLocation.addEventListener('click', () => {
+        locationModal.classList.add('active');
+        locationSearch.focus();
+    });
+
+    closeModal.addEventListener('click', () => {
+        locationModal.classList.remove('active');
+    });
+
+    window.addEventListener('click', (e) => {
+        if (e.target === locationModal) {
+            locationModal.classList.remove('active');
+        }
+    });
 
     locationSearch.addEventListener('input', () => {
         clearTimeout(searchDebounce);
@@ -149,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function selectResult(loc) {
         searchResults.style.display = 'none';
+        locationModal.classList.remove('active');
         locationSearch.value = loc.display_name;
         
         currentCoords = { lat: parseFloat(loc.lat), lng: parseFloat(loc.lon) };
@@ -255,12 +275,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn("Reverse geocode failed:", error);
                 loadFeed();
             } finally {
-                if (force) gpsBtn.innerText = 'Use My Location';
+                if (force) {
+                    gpsBtn.innerText = 'Use My Current Location';
+                    locationModal.classList.remove('active');
+                }
             }
         }, (error) => {
             console.warn("Geolocation error:", error);
             feedItems.innerHTML = `<div class="error-state">Please enable location access or search manually. (${error.message})</div>`;
-            if (force) gpsBtn.innerText = 'Use My Location';
+            if (force) gpsBtn.innerText = 'Use My Current Location';
         }, { timeout: 10000 });
     }
 
