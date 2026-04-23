@@ -172,6 +172,104 @@ input:focus {
     align-items: center;
 }
 
+.search-container {
+    display: flex;
+    align-items: center;
+    background: #f0f0f5;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px 5px 2px 15px;
+    flex: 1;
+    max-width: 600px;
+    margin: 0 2rem;
+    position: relative; /* For absolute results */
+}
+
+.search-results {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none; /* Hidden by default */
+}
+
+.result-item {
+    padding: 0.8rem 1.2rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f5;
+    font-size: 0.85rem;
+    transition: background 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.result-item:last-child {
+    border-bottom: none;
+}
+
+.result-item:hover {
+    background: #f8f8fa;
+    color: var(--primary);
+}
+
+
+#location-search {
+    border: none;
+    background: none;
+    padding: 8px 0;
+    width: 100%;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    outline: none;
+}
+
+#search-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 6px 15px;
+    border-radius: 15px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: background 0.2s;
+    margin-left: 5px;
+}
+
+#search-btn:hover {
+    background: var(--primary-dark);
+}
+
+#gps-btn {
+    background: #e0e0e5;
+    color: var(--text-main);
+    border: none;
+    padding: 6px 15px;
+    border-radius: 15px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    margin-left: 5px;
+    white-space: nowrap;
+}
+
+#gps-btn:hover {
+    background: #d0d0d5;
+    transform: translateY(-1px);
+}
+
+
+
+
 .logo-small {
     font-family: var(--font-heading);
     font-weight: 800;

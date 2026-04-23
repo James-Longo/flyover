@@ -9,21 +9,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const feedScreen = document.getElementById('feed-screen');
     const ebirdConnectCard = document.getElementById('ebird-connect-card');
     const feedItems = document.getElementById('feed-items');
+    const locationSearch = document.getElementById('location-search');
+    const searchBtn = document.getElementById('search-btn');
+    const gpsBtn = document.getElementById('gps-btn');
+    const searchResults = document.getElementById('search-results');
     const regionSelect = document.createElement('div'); // Will inject into sidebar
 
     // Initialize state
+    let currentCoords = localStorage.getItem('last_lat') ? {
+        lat: parseFloat(localStorage.getItem('last_lat')),
+        lng: parseFloat(localStorage.getItem('last_lng'))
+    } : null;
     let currentRegion = localStorage.getItem('ebird_region') || null; 
     let currentRegionName = localStorage.getItem('ebird_region_name') || null;
-    let currentCoords = null; 
-    if (localStorage.getItem('last_lat') && localStorage.getItem('last_lng')) {
-        currentCoords = { 
-            lat: parseFloat(localStorage.getItem('last_lat')), 
-            lng: parseFloat(localStorage.getItem('last_lng')) 
-        };
-    }
     let isLoadingMore = false;
     let lastLoadedDate = new Date();
     let scrollObserver = null;
+    let searchDebounce = null;
     const galleryCache = new Map();
     const speciesCache = new Map();
     const seenIds = new Set(); // Track unique sightings to avoid UI ghosts
@@ -72,6 +74,30 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.reload();
     });
 
+    searchBtn.addEventListener('click', () => handleSearch());
+    locationSearch.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSearch();
+    });
+
+    gpsBtn.addEventListener('click', () => detectLocation(true));
+
+    locationSearch.addEventListener('input', () => {
+        clearTimeout(searchDebounce);
+        const query = locationSearch.value.trim();
+        if (query.length < 3) {
+            searchResults.style.display = 'none';
+            return;
+        }
+        searchDebounce = setTimeout(() => fetchSuggestions(query), 300);
+    });
+
+    // Close results when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-container')) {
+            searchResults.style.display = 'none';
+        }
+    });
+
     // Global Media Click Handler (Event Delegation for instant response)
     feedItems.addEventListener('click', (e) => {
         const mediaCard = e.target.closest('.card-media');
@@ -94,7 +120,107 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    async function detectLocation() {
+    async function fetchSuggestions(query) {
+        try {
+            const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5`);
+            const results = await resp.json();
+            showSuggestions(results);
+        } catch (e) {
+            console.warn("Autofill failed:", e);
+        }
+    }
+
+    function showSuggestions(results) {
+        if (!results || results.length === 0) {
+            searchResults.style.display = 'none';
+            return;
+        }
+
+        searchResults.innerHTML = '';
+        results.forEach(res => {
+            const div = document.createElement('div');
+            div.className = 'result-item';
+            div.innerText = res.display_name;
+            div.onclick = () => selectResult(res);
+            searchResults.appendChild(div);
+        });
+        searchResults.style.display = 'block';
+    }
+
+    async function selectResult(loc) {
+        searchResults.style.display = 'none';
+        locationSearch.value = loc.display_name;
+        
+        currentCoords = { lat: parseFloat(loc.lat), lng: parseFloat(loc.lon) };
+        
+        const county = loc.address.county || loc.address.city || loc.address.town || loc.address.suburb || "Local Area";
+        const state = loc.address.state || loc.address.country;
+        currentRegionName = `${county}, ${state}`;
+        
+        // Cache it
+        localStorage.setItem('last_lat', currentCoords.lat);
+        localStorage.setItem('last_lng', currentCoords.lng);
+        localStorage.setItem('ebird_region_name', currentRegionName);
+
+        // Update eBird region using hotspots
+        currentRegion = await window.ebird.getRegionFromCoords(currentCoords.lat, currentCoords.lng);
+        if (currentRegion) localStorage.setItem('ebird_region', currentRegion);
+
+        // Refresh feed
+        loadFeed();
+    }
+
+    async function handleSearch() {
+        const query = locationSearch.value.trim();
+        if (!query) return;
+
+        searchBtn.innerText = '⏳';
+        try {
+            const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=1`);
+            const results = await resp.json();
+
+            if (results && results.length > 0) {
+                const loc = results[0];
+                currentCoords = { lat: parseFloat(loc.lat), lng: parseFloat(loc.lon) };
+                
+                const county = loc.address.county || loc.address.city || loc.address.town || loc.address.suburb || "Local Area";
+                const state = loc.address.state || loc.address.country;
+                currentRegionName = `${county}, ${state}`;
+                
+                // Cache it
+                localStorage.setItem('last_lat', currentCoords.lat);
+                localStorage.setItem('last_lng', currentCoords.lng);
+                localStorage.setItem('ebird_region_name', currentRegionName);
+
+                // Update eBird region using hotspots (most reliable)
+                currentRegion = await window.ebird.getRegionFromCoords(currentCoords.lat, currentCoords.lng);
+                if (currentRegion) localStorage.setItem('ebird_region', currentRegion);
+
+                // Refresh feed
+                loadFeed();
+            } else {
+                alert("Location not found. Try a city or county name.");
+            }
+        } catch (error) {
+            console.error("Search failed:", error);
+            alert("Search failed. Please try again.");
+        } finally {
+            searchBtn.innerText = 'Search';
+        }
+    }
+
+    async function detectLocation(force = false) {
+        // If we already have coords from search or cache, just load (unless forced)
+        if (currentCoords && !force) {
+            loadFeed();
+            return;
+        }
+
+        if (force) {
+            gpsBtn.innerText = 'Locating...';
+            locationSearch.value = ''; // Clear search on GPS force
+        }
+
         if (!navigator.geolocation) {
             console.log("Geolocation not supported.");
             feedItems.innerHTML = '<div class="error-state">Geolocation is not supported by your browser.</div>';
@@ -117,45 +243,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (county && state) {
                     currentRegionName = `${county}, ${state}`;
                     localStorage.setItem('ebird_region_name', currentRegionName);
-                    
-                    const foundRegion = await findEbirdRegion(county, state, geoData.address);
-                    if (foundRegion) {
-                        currentRegion = foundRegion;
-                        localStorage.setItem('ebird_region', currentRegion);
-                    }
+                }
+
+                const foundRegion = await window.ebird.getRegionFromCoords(latitude, longitude);
+                if (foundRegion) {
+                    currentRegion = foundRegion;
+                    localStorage.setItem('ebird_region', currentRegion);
                 }
                 loadFeed();
             } catch (error) {
                 console.warn("Reverse geocode failed:", error);
                 loadFeed();
+            } finally {
+                if (force) gpsBtn.innerText = 'Use My Location';
             }
-        }, (err) => {
-            console.warn("Geolocation error:", err);
-            feedItems.innerHTML = '<div class="error-state">Please enable location access to view sightings in your area.</div>';
+        }, (error) => {
+            console.warn("Geolocation error:", error);
+            feedItems.innerHTML = `<div class="error-state">Please enable location access or search manually. (${error.message})</div>`;
+            if (force) gpsBtn.innerText = 'Use My Location';
         }, { timeout: 10000 });
     }
 
     async function findEbirdRegion(countyName, stateName, address) {
         try {
+            if (!address) return null;
             // 1. Try to get state code from Nominatim ISO field (e.g., "US-ME")
             let stateCode = address['ISO3166-2-lvl4'];
             
             // 2. Fallback: Lookup state code from eBird for this country
+            let states = [];
             if (!stateCode && address.country_code) {
                 const countryCode = address.country_code.toUpperCase();
-                const states = await window.ebird.fetchJson(`/ref/region/list/subnational1/${countryCode}`);
+                states = await window.ebird.fetchJson(`/ref/region/list/subnational1/${countryCode}`);
                 const stateMatch = states.find(s => s.name.toLowerCase() === stateName.toLowerCase());
                 if (stateMatch) stateCode = stateMatch.code;
+            }
+
+            if (!stateCode) {
+                // Try matching stateName against subnational1
+                const stateMatch = states.find(s => s.name.toLowerCase() === stateName.toLowerCase());
+                if (stateMatch) {
+                    // We found the region directly at subnational1 (e.g. London might be here in some systems)
+                    // Or this is the parent region we need to search within
+                    stateCode = stateMatch.code;
+                }
             }
 
             if (!stateCode) return null;
 
             // 3. Get county list for this state and match
             const regions = await window.ebird.fetchJson(`/ref/region/list/subnational2/${stateCode}`);
-            const cleanCounty = countyName.replace(/ (County|Parish|Borough|Census Area)/, '');
+            const cleanCounty = countyName.replace(/ (County|Parish|Borough|City|Province|Region)/, '');
             const match = regions.find(r => r.name.toLowerCase().includes(cleanCounty.toLowerCase()));
             
-            return match ? match.code : null;
+            if (match) return match.code;
+            
+            // If no county match, maybe the stateCode itself is the target (common internationally)
+            return stateCode;
         } catch (e) {
             console.warn("Region lookup failed:", e);
             return null;
@@ -346,12 +490,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const hasEbird = !!localStorage.getItem('ebird_api_key');
 
             if (scopeText) {
+                const coordsText = `${currentCoords.lat.toFixed(2)}, ${currentCoords.lng.toFixed(2)}`;
                 if (hasEbird) {
-                    scopeText.innerText = `eBird: ${currentRegionName || 'Local County'} • iNat: 20km Radius`;
+                    scopeText.innerText = `eBird: ${currentRegionName} • iNat: 20km Radius around ${coordsText}`;
                     if (ebirdListsItem) ebirdListsItem.style.display = 'block';
                     if (ebirdSppItem) ebirdSppItem.style.display = 'block';
                 } else {
-                    scopeText.innerText = `iNaturalist: 20km Radius Around You`;
+                    scopeText.innerText = `iNaturalist: 20km Radius Around ${coordsText} (${currentRegionName || 'Detected Area'})`;
                     if (ebirdListsItem) ebirdListsItem.style.display = 'none';
                     if (ebirdSppItem) ebirdSppItem.style.display = 'none';
                 }

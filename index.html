@@ -27,6 +27,14 @@
             <header class="main-header">
                 <div class="header-content">
                     <div class="logo-small">🐦 Flyover</div>
+                    
+                    <div class="search-container">
+                        <input type="text" id="location-search" placeholder="City, county, or landmark..." autocomplete="off">
+                        <button id="search-btn">Search</button>
+                        <button id="gps-btn" title="Use my current location">Use My Location</button>
+                        <div id="search-results" class="search-results"></div>
+                    </div>
+
                     <nav class="main-nav">
                         <button id="logout-btn" style="display: none;">Disconnect eBird</button>
                     </nav>

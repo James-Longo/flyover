@@ -17,7 +17,9 @@ class EbirdService {
 
     async fetchJson(endpoint, params = {}) {
         const url = new URL(`${EBIRD_BASE_URL}${endpoint}`);
-        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+        // Ensure we always request JSON format
+        const finalParams = { ...params, fmt: 'json' };
+        Object.keys(finalParams).forEach(key => url.searchParams.append(key, finalParams[key]));
 
         const headers = {
             'X-eBirdApiToken': this.apiKey
@@ -187,9 +189,25 @@ class EbirdService {
     /**
      * Get recent observations near coordinates (radius in km)
      */
-    async getNearbyObservations(lat, lng, dist = 20, back = 7) {
+    async getNearbyObservations(lat, lng, dist = 25, back = 7) {
         if (!this.apiKey) return [];
-        return await this.fetchJson(`/data/obs/geo/recent`, { lat, lng, dist, back, includeProvisional: true });
+        return this.fetchJson(`/data/obs/geo/recent`, { lat, lng, dist, back, includeProvisional: true });
+    }
+
+    async getRegionFromCoords(lat, lng) {
+        if (!this.apiKey) return null;
+        try {
+            // Find nearest hotspots to extract the region code
+            const hotspots = await this.fetchJson(`/ref/hotspot/geo`, { lat, lng, dist: 50 });
+            if (hotspots && hotspots.length > 0) {
+                // Prefer subnational2 (county), fallback to subnational1 (state/province)
+                return hotspots[0].subnational2Code || hotspots[0].subnational1Code;
+            }
+            return null;
+        } catch (e) {
+            console.error("Failed to get region from coordinates:", e);
+            return null;
+        }
     }
 
     /**
