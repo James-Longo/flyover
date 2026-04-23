@@ -850,13 +850,26 @@ input:focus {
 
 /* Mobile Refinements */
 @media (max-width: 768px) {
-    header {
-        padding: 0.8rem 1rem;
+    .header-content {
+        flex-wrap: wrap;
+        gap: 0.5rem;
     }
 
-    header h1 {
-        font-size: 1.25rem;
+    .search-container {
+        order: 3;
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin: 0.5rem 0;
     }
+
+    .main-nav {
+        order: 2;
+    }
+
+    .logo-small {
+        order: 1;
+    }
+
 
     .lightbox-nav {
         font-size: 3.5rem;
