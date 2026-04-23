@@ -24,6 +24,13 @@ body {
     color: var(--text-main);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    width: 100%;
+    overflow-x: hidden;
+}
+
+html {
+    width: 100%;
+    overflow-x: hidden;
 }
 
 .screen {
@@ -314,7 +321,7 @@ input:focus {
     }
 
     .sidebar.left {
-        display: block;
+        display: none;
     }
 }
 
@@ -950,7 +957,6 @@ input:focus {
         max-width: 90%;
         padding: 2rem 1.5rem;
     }
-}
 
     .lightbox-close {
         top: 1rem;
