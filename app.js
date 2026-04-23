@@ -6,15 +6,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiInput = document.getElementById('api-key-input');
     const loginBtn = document.getElementById('login-btn');
     const logoutBtn = document.getElementById('logout-btn');
-    const loginScreen = document.getElementById('login-screen');
     const feedScreen = document.getElementById('feed-screen');
+    const ebirdConnectCard = document.getElementById('ebird-connect-card');
     const feedItems = document.getElementById('feed-items');
     const regionSelect = document.createElement('div'); // Will inject into sidebar
 
     // Initialize state
-    let currentRegion = localStorage.getItem('ebird_region') || 'US-ME-009'; // Default Hancock, ME
-    let currentRegionName = localStorage.getItem('ebird_region_name') || 'Hancock, Maine';
-    let currentCoords = { lat: 44.4759, lng: -68.4371 }; // Fallback
+    let currentRegion = localStorage.getItem('ebird_region') || null; 
+    let currentRegionName = localStorage.getItem('ebird_region_name') || null;
+    let currentCoords = null; 
+    if (localStorage.getItem('last_lat') && localStorage.getItem('last_lng')) {
+        currentCoords = { 
+            lat: parseFloat(localStorage.getItem('last_lat')), 
+            lng: parseFloat(localStorage.getItem('last_lng')) 
+        };
+    }
     let isLoadingMore = false;
     let lastLoadedDate = new Date();
     let scrollObserver = null;
@@ -41,16 +47,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const savedKey = localStorage.getItem('ebird_api_key');
     if (savedKey) {
-        login(savedKey);
-    } else {
-        loginScreen.classList.add('active'); // Only show if not logged in
+        window.ebird.setApiKey(savedKey);
+        if (logoutBtn) logoutBtn.style.display = 'block';
+        if (ebirdConnectCard) ebirdConnectCard.style.display = 'none';
     }
+
+    // Auto-start detection
+    detectLocation();
 
     // Event Listeners
     loginBtn.addEventListener('click', () => {
         const key = apiInput.value.trim();
         if (key) {
-            login(key);
+            connectEbird(key);
         } else {
             alert("Please enter a valid API key.");
         }
@@ -58,6 +67,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     logoutBtn.addEventListener('click', () => {
         localStorage.removeItem('ebird_api_key');
+        localStorage.removeItem('ebird_region');
+        localStorage.removeItem('ebird_region_name');
         window.location.reload();
     });
 
@@ -69,94 +80,131 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function login(key) {
+    async function connectEbird(key) {
         if (key) {
             localStorage.setItem('ebird_api_key', key);
             window.ebird.setApiKey(key);
         }
+        
+        if (ebirdConnectCard) ebirdConnectCard.style.display = 'none';
+        if (logoutBtn) logoutBtn.style.display = 'block';
 
-        loginScreen.classList.remove('active');
-        feedScreen.classList.add('active');
-
-        // Try to get location
+        // Re-detect to get region name for stats
         detectLocation();
-
-        // Initial load
-        loadFeed();
     }
 
 
     async function detectLocation() {
-        if (!navigator.geolocation) return;
+        if (!navigator.geolocation) {
+            console.log("Geolocation not supported.");
+            feedItems.innerHTML = '<div class="error-state">Geolocation is not supported by your browser.</div>';
+            return;
+        }
 
         navigator.geolocation.getCurrentPosition(async (position) => {
             const { latitude, longitude } = position.coords;
             currentCoords = { lat: latitude, lng: longitude };
+            localStorage.setItem('last_lat', latitude);
+            localStorage.setItem('last_lng', longitude);
             console.log("Location detected:", latitude, longitude);
 
             try {
-                // 1. Reverse geocode to get county name/state
                 const geoResp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
                 const geoData = await geoResp.json();
-                const county = geoData.address.county || geoData.address.city;
+                const county = geoData.address.county || geoData.address.city || geoData.address.town;
                 const state = geoData.address.state;
                 
                 if (county && state) {
                     currentRegionName = `${county}, ${state}`;
                     localStorage.setItem('ebird_region_name', currentRegionName);
                     
-                    const foundRegion = await findEbirdRegion(county, state);
+                    const foundRegion = await findEbirdRegion(county, state, geoData.address);
                     if (foundRegion) {
                         currentRegion = foundRegion;
                         localStorage.setItem('ebird_region', currentRegion);
-                        loadFeed();
                     }
                 }
+                loadFeed();
             } catch (error) {
                 console.warn("Reverse geocode failed:", error);
+                loadFeed();
             }
-        });
+        }, (err) => {
+            console.warn("Geolocation error:", err);
+            feedItems.innerHTML = '<div class="error-state">Please enable location access to view sightings in your area.</div>';
+        }, { timeout: 10000 });
     }
 
-    async function findEbirdRegion(countyName, stateName) {
+    async function findEbirdRegion(countyName, stateName, address) {
         try {
-            const stateCodes = { "Maine": "US-ME", "New York": "US-NY", "Massachusetts": "US-MA", "California": "US-CA" };
-            const stateCode = stateCodes[stateName];
+            // 1. Try to get state code from Nominatim ISO field (e.g., "US-ME")
+            let stateCode = address['ISO3166-2-lvl4'];
+            
+            // 2. Fallback: Lookup state code from eBird for this country
+            if (!stateCode && address.country_code) {
+                const countryCode = address.country_code.toUpperCase();
+                const states = await window.ebird.fetchJson(`/ref/region/list/subnational1/${countryCode}`);
+                const stateMatch = states.find(s => s.name.toLowerCase() === stateName.toLowerCase());
+                if (stateMatch) stateCode = stateMatch.code;
+            }
+
             if (!stateCode) return null;
 
-            const regions = await window.ebird.fetchJson(`/ref/region/list/sub1/${stateCode}`);
-            const cleanCounty = countyName.replace(' County', '');
-            const match = regions.find(r => r.name.toLowerCase() === cleanCounty.toLowerCase());
+            // 3. Get county list for this state and match
+            const regions = await window.ebird.fetchJson(`/ref/region/list/subnational2/${stateCode}`);
+            const cleanCounty = countyName.replace(/ (County|Parish|Borough|Census Area)/, '');
+            const match = regions.find(r => r.name.toLowerCase().includes(cleanCounty.toLowerCase()));
+            
             return match ? match.code : null;
         } catch (e) {
+            console.warn("Region lookup failed:", e);
             return null;
         }
     }
 
     async function loadFeed() {
+        if (!currentCoords) {
+            feedItems.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Detecting your location...</p></div>';
+            return;
+        }
         feedItems.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Fetching from eBird & iNaturalist...</p></div>';
         lastLoadedDate = new Date(); // Reset date on reload
         clearInfiniteScroll(); // Remove old observers
+        seenIds.clear(); // Clear deduplication set for fresh load
 
         try {
-            await window.ebird.loadTaxonomy(currentRegion);
+            if (currentRegion) await window.ebird.loadTaxonomy(currentRegion);
             
             // Parallel Fetch
-            const [ebirdData, inatData] = await Promise.all([
-                window.ebird.getRecentChecklists(currentRegion),
-                window.inat.fetchObservations(currentCoords.lat, currentCoords.lng, 20, lastLoadedDate)
-            ]);
+            let ebirdPromise;
+            const hasEbirdKey = !!localStorage.getItem('ebird_api_key');
+            
+            if (hasEbirdKey) {
+                if (currentRegion) {
+                    // Preferred: Region-based checklists (has usernames)
+                    ebirdPromise = window.ebird.getRecentChecklists(currentRegion)
+                        .then(data => groupChecklists(data).map(list => {
+                            const dateStr = list.obsTime ? `${list.obsDt} ${list.obsTime}` : list.obsDt;
+                            return {
+                                source: 'ebird',
+                                id: list.subId,
+                                date: new Date(dateStr.replace(/-/g, "/")),
+                                ...list
+                            };
+                        }));
+                } else {
+                    // Fallback: Coordinate-based observations (no usernames)
+                    ebirdPromise = window.ebird.getNearbyObservations(currentCoords.lat, currentCoords.lng, 20, 7)
+                        .then(data => groupEbirdObservations(data));
+                }
+            } else {
+                ebirdPromise = Promise.resolve([]);
+            }
 
-            // Normalize eBird sightings to match unified format
-            const normalizedEbird = groupChecklists(ebirdData).map(list => {
-                const dateStr = list.obsTime ? `${list.obsDt} ${list.obsTime}` : list.obsDt;
-                return {
-                    source: 'ebird',
-                    id: list.subId,
-                    date: new Date(dateStr.replace(/-/g, "/")),
-                    ...list
-                };
-            });
+            const [normalizedEbird, inatData] = await Promise.all([
+                ebirdPromise,
+                window.inat.fetchObservations(currentCoords.lat, currentCoords.lng, 20, null)
+            ]);
 
             // Combine and Sort by Date
             // Combine, Sort, and Filter Duplicates
@@ -179,12 +227,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
             renderFeed(combinedFeed, true); // True = overwrite
 
+            // Dynamically set lastLoadedDate to the day BEFORE the oldest item found
+            if (combinedFeed.length > 0) {
+                lastLoadedDate = new Date(combinedFeed[combinedFeed.length - 1].date);
+                lastLoadedDate.setDate(lastLoadedDate.getDate() - 1);
+            } else {
+                lastLoadedDate.setDate(lastLoadedDate.getDate() - 1);
+            }
+
             setupInfiniteScroll();
             updateRegionalStats();
         } catch (error) {
             console.error("Feed load failed:", error);
             feedItems.innerHTML = `<div class="error-state">Error loading feed: ${error.message}</div>`;
         }
+    }
+
+    function groupEbirdObservations(obs) {
+        const groups = new Map();
+        obs.forEach(o => {
+            if (!groups.has(o.subId)) {
+                groups.set(o.subId, {
+                    source: 'ebird',
+                    id: o.subId,
+                    date: new Date(o.obsDt.replace(/-/g, "/")),
+                    obsDt: o.obsDt,
+                    locName: o.locName,
+                    userDisplayName: o.userDisplayName || "Observer",
+                    loc: { latitude: o.lat, longitude: o.lng },
+                    numSpecies: 1,
+                    speciesCodes: [o.speciesCode]
+                });
+            } else {
+                const group = groups.get(o.subId);
+                if (!group.speciesCodes.includes(o.speciesCode)) {
+                    group.speciesCodes.push(o.speciesCode);
+                    group.numSpecies++;
+                }
+            }
+        });
+        return Array.from(groups.values());
     }
 
     function groupChecklists(checklists) {
@@ -242,10 +324,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function updateRegionalStats() {
+        if (!currentCoords) return;
         try {
             // Stats should follow the currently detected county/region code
+            const ebirdStatsPromise = currentRegion 
+                ? window.ebird.getRegionalStats(currentRegion) 
+                : Promise.resolve({ numChecklists: 0, numSpecies: 0 });
             const [ebirdStats, inatStats] = await Promise.all([
-                window.ebird.getRegionalStats(currentRegion),
+                ebirdStatsPromise,
                 window.inat.getDailyStats(currentCoords.lat, currentCoords.lng)
             ]);
             
@@ -255,8 +341,20 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('stats-inat-species').innerText = inatStats.numSpecies || 0;
 
             const scopeText = document.getElementById('stats-scope-text');
+            const ebirdListsItem = document.getElementById('ebird-stats-lists');
+            const ebirdSppItem = document.getElementById('ebird-stats-spp');
+            const hasEbird = !!localStorage.getItem('ebird_api_key');
+
             if (scopeText) {
-                scopeText.innerText = `eBird: ${currentRegionName || 'Local County'} • iNat: 20km Radius`;
+                if (hasEbird) {
+                    scopeText.innerText = `eBird: ${currentRegionName || 'Local County'} • iNat: 20km Radius`;
+                    if (ebirdListsItem) ebirdListsItem.style.display = 'block';
+                    if (ebirdSppItem) ebirdSppItem.style.display = 'block';
+                } else {
+                    scopeText.innerText = `iNaturalist: 20km Radius Around You`;
+                    if (ebirdListsItem) ebirdListsItem.style.display = 'none';
+                    if (ebirdSppItem) ebirdSppItem.style.display = 'none';
+                }
             }
         } catch (error) {
             console.warn("Failed to update regional stats:", error);
@@ -349,26 +447,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let itemsFound = 0;
         let daysTried = 0;
-        const MAX_DAYS = 7; // Safety cap to avoid infinite loops on empty regions
+        const MAX_DAYS = 30; // Look back up to a month
 
         try {
+            const hasEbirdKey = !!localStorage.getItem('ebird_api_key');
             while (itemsFound === 0 && daysTried < MAX_DAYS) {
                 console.log(`Loading sightings for: ${lastLoadedDate.toDateString()}`);
                 
-                const [rawChecklists, inatData] = await Promise.all([
-                    window.ebird.getRecentChecklists(currentRegion, lastLoadedDate),
+                let ebirdPromise;
+                if (hasEbirdKey) {
+                    if (currentRegion) {
+                        ebirdPromise = window.ebird.getRecentChecklists(currentRegion, lastLoadedDate)
+                            .then(data => groupChecklists(data).map(list => {
+                                const dateStr = list.obsTime ? `${list.obsDt} ${list.obsTime}` : list.obsDt;
+                                return {
+                                    source: 'ebird',
+                                    id: list.subId,
+                                    date: new Date(dateStr.replace(/-/g, "/")),
+                                    ...list
+                                };
+                            }));
+                    } else {
+                        // Fallback: Coordinate-based observations
+                        const daysBack = Math.ceil((new Date() - lastLoadedDate) / (1000 * 60 * 60 * 24)) + 1;
+                        ebirdPromise = window.ebird.getNearbyObservations(currentCoords.lat, currentCoords.lng, 20, daysBack)
+                            .then(data => groupEbirdObservations(data));
+                    }
+                } else {
+                    ebirdPromise = Promise.resolve([]);
+                }
+
+                const [normalizedEbird, inatData] = await Promise.all([
+                    ebirdPromise,
                     window.inat.fetchObservations(currentCoords.lat, currentCoords.lng, 20, lastLoadedDate)
                 ]);
-
-                const normalizedEbird = groupChecklists(rawChecklists).map(list => {
-                    const dateStr = list.obsTime ? `${list.obsDt} ${list.obsTime}` : list.obsDt;
-                    return {
-                        source: 'ebird',
-                        id: list.subId,
-                        date: new Date(dateStr.replace(/-/g, "/")),
-                        ...list
-                    };
-                });
 
                 const groupedInat = groupInatObservations(inatData);
                 

@@ -22,35 +22,33 @@
 
 <body>
     <div id="app">
-        <!-- Login / Landing Screen -->
-        <section id="login-screen" class="screen">
-            <div class="login-container">
-                <div class="logo">
-                    <span class="icon">🐦</span>
-                    <h1>Flyover</h1>
-                </div>
-                <p>Enter your eBird API key to view recent nature sightings in your area.</p>
-                <div class="input-group">
-                    <h4>eBird API Key</h4>
-                    <input type="password" id="api-key-input" placeholder="Enter your eBird API Token...">
-                    <button id="login-btn" class="primary-btn">Connect eBird</button>
-                </div>
-            </div>
-        </section>
-
         <!-- Main Feed Screen -->
-        <section id="feed-screen" class="screen">
+        <section id="feed-screen" class="screen active">
             <header class="main-header">
                 <div class="header-content">
                     <div class="logo-small">🐦 Flyover</div>
                     <nav class="main-nav">
-                        <button id="logout-btn">Logout</button>
+                        <button id="logout-btn" style="display: none;">Disconnect eBird</button>
                     </nav>
                 </div>
             </header>
 
             <main class="feed-layout">
                 <aside class="sidebar left">
+                    <div id="ebird-connect-card" class="sidebar-card">
+                        <h3>Connect eBird</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                            Add real-time bird sightings to your feed by connecting your eBird account.
+                        </p>
+                        <div class="input-group">
+                            <input type="password" id="api-key-input" placeholder="eBird API Token...">
+                            <button id="login-btn" class="primary-btn" style="width: 100%; padding: 0.75rem;">Connect</button>
+                        </div>
+                        <p style="font-size: 0.75rem; margin-top: 1rem;">
+                            <a href="https://ebird.org/api/keygen" target="_blank" style="color: var(--primary); text-decoration: none; font-weight: 600;">Get your API key here ↗</a>
+                        </p>
+                    </div>
+
                     <div class="ebird-attribution">
                         <p>Data provided by <a href="https://ebird.org" target="_blank">eBird</a> & <a href="https://inaturalist.org" target="_blank">iNaturalist</a></p>
                     </div>
@@ -61,11 +59,11 @@
                         <h3 style="margin-bottom: 2px;">Today's Activity</h3>
                         <p id="stats-scope-text" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1.25rem;">Detecting area...</p>
                         <div class="stat-grid">
-                            <div class="stat-item">
+                            <div class="stat-item" id="ebird-stats-lists">
                                 <span class="stat-val" id="stats-ebird-lists">--</span>
                                 <span class="stat-label">eBird Lists</span>
                             </div>
-                            <div class="stat-item">
+                            <div class="stat-item" id="ebird-stats-spp">
                                 <span class="stat-val" id="stats-ebird-species">--</span>
                                 <span class="stat-label">eBird Spp</span>
                             </div>

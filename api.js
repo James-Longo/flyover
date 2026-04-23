@@ -34,7 +34,7 @@ class EbirdService {
      * Fetch taxonomy for a region (e.g. US-ME) and cache it
      */
     async loadTaxonomy(regionCode) {
-        if (this.isLoadingTaxonomy) return;
+        if (!regionCode || this.isLoadingTaxonomy) return;
         this.isLoadingTaxonomy = true;
         
         try {
@@ -87,7 +87,7 @@ class EbirdService {
         if (!this.apiKey) return this.getMockChecklists();
         
         let endpoint = `/product/lists/${regionCode}`;
-        let params = { maxResults: 30 };
+        let params = { maxResults: 100 };
         
         if (date) {
             const y = date.getFullYear();
@@ -182,6 +182,14 @@ class EbirdService {
             console.warn(`Taxonomy fallback failed for ${code}:`, e);
         }
         return "";
+    }
+
+    /**
+     * Get recent observations near coordinates (radius in km)
+     */
+    async getNearbyObservations(lat, lng, dist = 20, back = 7) {
+        if (!this.apiKey) return [];
+        return await this.fetchJson(`/data/obs/geo/recent`, { lat, lng, dist, back, includeProvisional: true });
     }
 
     /**

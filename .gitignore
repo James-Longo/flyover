@@ -1,1 +1,8 @@
-*.json
+node_modules/
+.env
+.DS_Store
+*.log
+radius_obs.json
+sub_details.json
+taxonomy_me.json
+test_resp.json
