@@ -134,8 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ebirdConnectCard) ebirdConnectCard.style.display = 'none';
         if (logoutBtn) logoutBtn.style.display = 'block';
 
-        // Re-detect to get region name for stats
-        detectLocation();
+        // Refresh to initialize everything with the new key
+        location.reload();
     }
 
 
