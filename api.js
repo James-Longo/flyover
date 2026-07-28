@@ -25,9 +25,15 @@ class EbirdService {
             'X-eBirdApiToken': this.apiKey
         };
 
-        const response = await fetch(url, { headers });
+        let response = await fetch(url, { headers });
+        if (response.status === 429) {
+            // Rate limited: back off once before giving up
+            await new Promise(r => setTimeout(r, 1500));
+            response = await fetch(url, { headers });
+        }
         if (!response.ok) {
-            throw new Error(`eBird API error: ${response.statusText}`);
+            const detail = response.status === 429 ? 'rate limited, try again shortly' : response.statusText;
+            throw new Error(`eBird API error: ${response.status} ${detail}`.trim());
         }
         return response.json();
     }
@@ -48,7 +54,7 @@ class EbirdService {
             // because state-wide taxonomy is large.
             const recentObs = await this.fetchJson(`/data/obs/${regionCode}/recent`, { back: 14 });
             recentObs.forEach(obs => {
-                this.taxonomyMap.set(obs.speciesCode, obs.comName);
+                this.taxonomyMap.set(obs.speciesCode, { comName: obs.comName, sciName: obs.sciName });
             });
             
             // If we have a key, we can try to fetch more if needed, 
@@ -61,7 +67,24 @@ class EbirdService {
     }
 
     getSpeciesName(speciesCode) {
-        return this.taxonomyMap.get(speciesCode) || speciesCode;
+        const entry = this.taxonomyMap.get(speciesCode);
+        return (entry && entry.comName) || speciesCode;
+    }
+
+    /**
+     * Resolve any unknown species codes in ONE batched taxonomy request.
+     * (Per-species lookups used to fire 2 requests per species per checklist,
+     * which tripped eBird's rate limiter and broke the species lists.)
+     */
+    async ensureSpeciesNames(codes) {
+        const missing = [...new Set(codes)].filter(c => c && !this.taxonomyMap.has(c));
+        if (!missing.length) return;
+        try {
+            const tax = await this.fetchJson(`/ref/taxonomy/ebird`, { species: missing.join(','), fmt: 'json' });
+            tax.forEach(t => this.taxonomyMap.set(t.speciesCode, { comName: t.comName, sciName: t.sciName }));
+        } catch (e) {
+            console.warn("Batch taxonomy lookup failed:", e);
+        }
     }
 
     /**
@@ -121,13 +144,17 @@ class EbirdService {
             // We can't fetch the assets themselves anymore (Macaulay locked down
             // its API), but eBird still tells us they exist so we can link out.
             const mediaTotals = { photos: 0, audio: 0, video: 0 };
-            (d.obs || d.observations || []).forEach(o => {
+            const rawObs = d.obs || d.observations || [];
+            rawObs.forEach(o => {
                 if (o.mediaCounts) {
                     mediaTotals.photos += o.mediaCounts.P || 0;
                     mediaTotals.audio += o.mediaCounts.A || 0;
                     mediaTotals.video += o.mediaCounts.V || 0;
                 }
             });
+
+            // Checklist obs come back with codes only — resolve names in one batch
+            await this.ensureSpeciesNames(rawObs.filter(o => !o.comName).map(o => o.speciesCode));
 
             // Very robust mapping
             return {
@@ -144,59 +171,21 @@ class EbirdService {
                 durationMin: d.durationHrs ? Math.round(d.durationHrs * 60) : (d.durationMin || null),
                 effortDistanceKm: d.effortDistanceKm || null,
                 effortDistanceMiles: d.effortDistanceMiles || null,
-                obs: await Promise.all((d.obs || d.observations || []).map(async o => {
-                    const comName = o.comName || o.commonName || await this.getSpeciesName(o.speciesCode);
-                    const scientificName = o.sciName || o.scientificName || await this.getSpeciesScientificName(o.speciesCode);
+                obs: rawObs.map(o => {
+                    const entry = this.taxonomyMap.get(o.speciesCode) || {};
                     return {
-                        comName,
-                        scientificName,
+                        comName: o.comName || o.commonName || entry.comName || o.speciesCode,
+                        scientificName: o.sciName || o.scientificName || entry.sciName || "",
                         howMany: o.howMany || o.count || o.howManyStr || "1",
                         speciesCode: o.speciesCode,
                         comments: o.comments || ""
                     };
-                }))
+                })
             };
         } catch (e) {
             console.error("Error in getChecklistDetails:", e);
             throw e;
         }
-    }
-
-    /**
-     * Get species name with async taxonomic fallback
-     */
-    async getSpeciesName(code) {
-        if (this.taxonomyMap.has(code)) return this.taxonomyMap.get(code);
-        
-        // Try fallback fetch from official taxonomy reference
-        try {
-            const tax = await this.fetchJson(`/ref/taxonomy/ebird`, { species: code, fmt: 'json' });
-            if (tax && tax.length > 0) {
-                const name = tax[0].comName;
-                this.taxonomyMap.set(code, name);
-                return name;
-            }
-        } catch (e) {
-            console.warn(`Taxonomy fallback failed for ${code}:`, e);
-        }
-        return code;
-    }
-
-    /**
-     * Get scientific name with async taxonomic fallback
-     */
-    async getSpeciesScientificName(code) {
-        // Sci names aren't currently stored in the map, but we can check if they are
-        // For now, try fallback fetch or return empty
-        try {
-            const tax = await this.fetchJson(`/ref/taxonomy/ebird`, { species: code, fmt: 'json' });
-            if (tax && tax.length > 0) {
-                return tax[0].sciName;
-            }
-        } catch (e) {
-            console.warn(`Taxonomy fallback failed for ${code}:`, e);
-        }
-        return "";
     }
 
     /**

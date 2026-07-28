@@ -17,7 +17,7 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <link rel="stylesheet" href="style.css?v=11">
+    <link rel="stylesheet" href="style.css?v=15">
 </head>
 
 <body>
@@ -27,7 +27,12 @@
             <header class="main-header">
                 <div class="header-content">
                     <div class="logo-small">🐦 Flyover</div>
-                    
+
+                    <div class="view-tabs">
+                        <button id="tab-feed" class="tab-btn active">Feed</button>
+                        <button id="tab-map" class="tab-btn">Map</button>
+                    </div>
+
                     <nav class="main-nav">
                         <button id="logout-btn" style="display: none;">Disconnect eBird</button>
                     </nav>
@@ -103,6 +108,11 @@
 
                 </aside>
             </main>
+
+            <!-- Map View (toggled by the Feed/Map tabs) -->
+            <div id="map-view">
+                <div id="map"></div>
+            </div>
         </section>
     </div>
 
@@ -141,8 +151,8 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="api.js?v=14"></script>
-    <script src="app.js?v=14"></script>
+    <script src="api.js?v=17"></script>
+    <script src="app.js?v=17"></script>
 </body>
 
 </html>

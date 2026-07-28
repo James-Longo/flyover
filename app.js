@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const galleryCache = new Map();
     const speciesCache = new Map();
     const seenIds = new Set(); // Track unique sightings to avoid UI ghosts
+    let allFeedItems = []; // Everything loaded so far, for the map view
 
     // Shared Observer for lazy card content (Species & Media)
     const lazyObserver = new IntersectionObserver((entries) => {
@@ -382,6 +383,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 ebirdPromise = Promise.resolve([]);
             }
 
+            // One source failing shouldn't blank the whole feed
+            ebirdPromise = ebirdPromise.catch(err => {
+                console.warn("eBird feed unavailable, showing iNaturalist only:", err);
+                return [];
+            });
+
             const [normalizedEbird, inatData] = await Promise.all([
                 ebirdPromise,
                 window.inat.fetchObservations(currentCoords.lat, currentCoords.lng, 20, null)
@@ -405,6 +412,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     speciesCache.set(`species-${item.id}`, item.obs);
                 }
             });
+
+            allFeedItems = [...combinedFeed];
+            refreshMap(true);
 
             renderFeed(combinedFeed, true); // True = overwrite
 
@@ -659,6 +669,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     ebirdPromise = Promise.resolve([]);
                 }
 
+                // One source failing shouldn't stall pagination
+                ebirdPromise = ebirdPromise.catch(err => {
+                    console.warn("eBird page unavailable, continuing with iNaturalist:", err);
+                    return [];
+                });
+
                 const [normalizedEbird, inatData] = await Promise.all([
                     ebirdPromise,
                     window.inat.fetchObservations(currentCoords.lat, currentCoords.lng, 20, lastLoadedDate)
@@ -685,6 +701,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             speciesCache.set(`species-${item.id}`, item.obs);
                         }
                     });
+
+                    allFeedItems.push(...combinedFeed);
+                    refreshMap(false);
 
                     renderFeed(combinedFeed, false); // Append
                 }
@@ -878,6 +897,95 @@ document.addEventListener('DOMContentLoaded', () => {
             mediaEl.closest('.checklist-card')?.classList.remove('no-media'); 
         } else {
             mediaEl.style.display = 'none';
+        }
+    }
+
+    // --- Map Tab ---
+    const tabFeed = document.getElementById('tab-feed');
+    const tabMap = document.getElementById('tab-map');
+    const mapView = document.getElementById('map-view');
+    const feedLayout = document.querySelector('.feed-layout');
+    let map = null;
+    let mapMarkers = null;
+
+    tabFeed.addEventListener('click', () => switchTab('feed'));
+    tabMap.addEventListener('click', () => switchTab('map'));
+
+    function switchTab(which) {
+        const isMap = which === 'map';
+        tabFeed.classList.toggle('active', !isMap);
+        tabMap.classList.toggle('active', isMap);
+        feedLayout.style.display = isMap ? 'none' : '';
+        mapView.style.display = isMap ? 'block' : 'none';
+        if (isMap) {
+            initMap();
+            renderMapMarkers();
+            // Leaflet measures its container on init; re-measure now that it's visible
+            setTimeout(() => map.invalidateSize(), 50);
+        }
+    }
+
+    function initMap() {
+        if (map) return;
+        const center = currentCoords ? [currentCoords.lat, currentCoords.lng] : [39.8, -98.6];
+        map = L.map('map').setView(center, currentCoords ? 10 : 4);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        mapMarkers = L.layerGroup().addTo(map);
+
+        const legend = L.control({ position: 'bottomleft' });
+        legend.onAdd = () => {
+            const div = L.DomUtil.create('div', 'map-legend');
+            div.innerHTML = `
+                <span><i style="background:#16a34a"></i>eBird checklist</span>
+                <span><i style="background:#f59e0b"></i>iNaturalist</span>`;
+            return div;
+        };
+        legend.addTo(map);
+    }
+
+    function renderMapMarkers() {
+        if (!mapMarkers) return;
+        mapMarkers.clearLayers();
+        allFeedItems.forEach(item => {
+            const lat = item.loc && item.loc.latitude;
+            const lng = item.loc && item.loc.longitude;
+            if (lat == null || lng == null) return;
+
+            const isInat = item.source === 'inaturalist';
+            const marker = L.circleMarker([lat, lng], {
+                radius: 8,
+                weight: 2,
+                color: '#ffffff',
+                fillColor: isInat ? '#f59e0b' : '#16a34a',
+                fillOpacity: 0.9
+            });
+
+            const dateStr = item.date.toLocaleString([], {
+                month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+            });
+            const count = isInat
+                ? `🌿 ${item.numSpecies} observation${item.numSpecies > 1 ? 's' : ''}`
+                : `🐦 ${item.numSpecies} species`;
+            const link = isInat ? '' : `<br><a href="https://ebird.org/checklist/${item.id}" target="_blank">View checklist ↗</a>`;
+            marker.bindPopup(`
+                <div class="map-popup">
+                    <b>${item.userDisplayName || 'Observer'}</b><br>
+                    ${dateStr} • ${item.locName}<br>
+                    ${count}${link}
+                </div>`);
+            mapMarkers.addLayer(marker);
+        });
+    }
+
+    // Called whenever feed data changes; recenter only on a full reload
+    function refreshMap(recenter) {
+        if (!map) return;
+        renderMapMarkers();
+        if (recenter && currentCoords) {
+            map.setView([currentCoords.lat, currentCoords.lng], 10);
         }
     }
 
