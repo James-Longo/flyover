@@ -284,6 +284,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn("Geolocation error:", error);
             feedItems.innerHTML = `<div class="error-state">Please enable location access or search manually. (${error.message})</div>`;
             if (force) gpsBtn.innerText = 'Use My Current Location';
+            // Don't dead-end: give the user the search modal so they can recover.
+            locationModal.classList.add('active');
+            locationSearch.focus();
         }, { timeout: 10000 });
     }
 
@@ -340,6 +343,17 @@ document.addEventListener('DOMContentLoaded', () => {
         seenIds.clear(); // Clear deduplication set for fresh load
 
         try {
+            // The cached region can go stale or belong to a previous location,
+            // which would silently fill the feed with checklists from the wrong
+            // part of the world. Always re-derive it from the current coords.
+            if (localStorage.getItem('ebird_api_key')) {
+                const freshRegion = await window.ebird.getRegionFromCoords(currentCoords.lat, currentCoords.lng);
+                if (freshRegion && freshRegion !== currentRegion) {
+                    currentRegion = freshRegion;
+                    localStorage.setItem('ebird_region', currentRegion);
+                }
+            }
+
             if (currentRegion) await window.ebird.loadTaxonomy(currentRegion);
             
             // Parallel Fetch
@@ -734,6 +748,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         `;
                     }
 
+                    // 0.5 Media summary — assets live on Macaulay Library, which no
+                    // longer allows third-party fetching, so link out to eBird instead.
+                    const mt = effortInfo && effortInfo.mediaTotals;
+                    if (mt && (mt.photos || mt.audio || mt.video)) {
+                        const bits = [];
+                        if (mt.photos) bits.push(`📷 ${mt.photos} photo${mt.photos > 1 ? 's' : ''}`);
+                        if (mt.audio) bits.push(`🔈 ${mt.audio} recording${mt.audio > 1 ? 's' : ''}`);
+                        if (mt.video) bits.push(`🎥 ${mt.video} video${mt.video > 1 ? 's' : ''}`);
+                        html += `
+                            <div class="effort-summary">
+                                <a href="https://ebird.org/checklist/${subId}" target="_blank" class="effort-pill" style="text-decoration: none; color: inherit;">
+                                    ${bits.join(' · ')} — view on eBird ↗
+                                </a>
+                            </div>
+                        `;
+                    }
+
                     // 1. Checklist-level Comments
                     if (checklistComments) {
                         html += `
@@ -800,23 +831,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (source === 'inaturalist') {
             uniqueAssets = galleryCache.get(elementId) || [];
-        } else {
-            const subIds = JSON.parse(mediaEl.getAttribute('data-subids') || "[]");
-            const fetchPromises = subIds.map(async (id) => {
-                const resp = await fetch(`https://search.macaulaylibrary.org/api/v1/search?subId=${id}&includeUnconfirmed=true`);
-                if (resp.ok) {
-                    const data = await resp.json();
-                    return (data.results?.content || []);
-                }
-                return [];
-            });
-
-            const results = await Promise.all(fetchPromises);
-            uniqueAssets = Array.from(new Map(results.flat().map(a => [a.catalogId, a])).values()).map(a => ({
-                ...a,
-                source: 'ebird'
-            }));
         }
+        // eBird media is no longer fetchable: Macaulay Library retired its open
+        // search API (the v2 replacement is CORS-blocked and bot-protected, with
+        // no key program). Checklists with media get a "view on eBird" link in
+        // the species list instead, via mediaCounts from the eBird checklist API.
 
         if (uniqueAssets.length > 0) {
             galleryCache.set(elementId, uniqueAssets);

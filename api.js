@@ -117,8 +117,21 @@ class EbirdService {
             const d = await this.fetchJson(`/product/checklist/view/${subId}`, { sppLocale: 'en' });
             console.log("Checklist Details Response:", d);
             
+            // Tally media attached to this checklist (P=photo, A=audio, V=video).
+            // We can't fetch the assets themselves anymore (Macaulay locked down
+            // its API), but eBird still tells us they exist so we can link out.
+            const mediaTotals = { photos: 0, audio: 0, video: 0 };
+            (d.obs || d.observations || []).forEach(o => {
+                if (o.mediaCounts) {
+                    mediaTotals.photos += o.mediaCounts.P || 0;
+                    mediaTotals.audio += o.mediaCounts.A || 0;
+                    mediaTotals.video += o.mediaCounts.V || 0;
+                }
+            });
+
             // Very robust mapping
             return {
+                mediaTotals,
                 subId: d.subId,
                 obsDt: d.obsDt,
                 obsTime: d.obsTime,
