@@ -907,6 +907,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const feedLayout = document.querySelector('.feed-layout');
     let map = null;
     let mapMarkers = null;
+    let mapLoadingEl = null;
+    let mapFetchTimer = null;
+    let mapFetchSeq = 0;
+    const extraMapItems = new Map(); // sightings fetched by panning, beyond the feed
 
     tabFeed.addEventListener('click', () => switchTab('feed'));
     tabMap.addEventListener('click', () => switchTab('map'));
@@ -921,7 +925,10 @@ document.addEventListener('DOMContentLoaded', () => {
             initMap();
             renderMapMarkers();
             // Leaflet measures its container on init; re-measure now that it's visible
-            setTimeout(() => map.invalidateSize(), 50);
+            setTimeout(() => {
+                map.invalidateSize();
+                fetchVisibleSightings();
+            }, 50);
         }
     }
 
@@ -944,12 +951,68 @@ document.addEventListener('DOMContentLoaded', () => {
             return div;
         };
         legend.addTo(map);
+
+        const loading = L.control({ position: 'topright' });
+        loading.onAdd = () => {
+            mapLoadingEl = L.DomUtil.create('div', 'map-loading');
+            mapLoadingEl.innerText = 'Loading sightings…';
+            mapLoadingEl.style.display = 'none';
+            return mapLoadingEl;
+        };
+        loading.addTo(map);
+
+        // Pull in sightings for wherever the user pans or zooms
+        map.on('moveend', () => {
+            clearTimeout(mapFetchTimer);
+            mapFetchTimer = setTimeout(fetchVisibleSightings, 500);
+        });
+    }
+
+    async function fetchVisibleSightings() {
+        if (!map) return;
+        const seq = ++mapFetchSeq;
+        const center = map.getCenter();
+        const bounds = map.getBounds();
+        // Radius (km) from center to a corner; eBird caps dist at 50 km
+        const cornerKm = Math.ceil(center.distanceTo(bounds.getNorthEast()) / 1000);
+        const radiusKm = Math.max(1, Math.min(50, cornerKm));
+        const hasKey = !!localStorage.getItem('ebird_api_key');
+
+        if (mapLoadingEl) mapLoadingEl.style.display = 'block';
+        try {
+            const [ebirdObs, inatObs] = await Promise.all([
+                hasKey
+                    ? window.ebird.getNearbyObservations(center.lat, center.lng, radiusKm, 7)
+                        .catch(err => { console.warn("Map eBird fetch failed:", err); return []; })
+                    : Promise.resolve([]),
+                window.inat.fetchObservations(center.lat, center.lng, radiusKm, null)
+                    .catch(err => { console.warn("Map iNat fetch failed:", err); return []; })
+            ]);
+            if (seq !== mapFetchSeq) return; // superseded by a newer pan
+
+            groupEbirdObservations(ebirdObs).forEach(item => {
+                if (!extraMapItems.has(item.id)) extraMapItems.set(item.id, item);
+            });
+            groupInatObservations(inatObs).forEach(item => {
+                if (!extraMapItems.has(item.id)) extraMapItems.set(item.id, item);
+            });
+            renderMapMarkers();
+        } finally {
+            if (seq === mapFetchSeq && mapLoadingEl) mapLoadingEl.style.display = 'none';
+        }
     }
 
     function renderMapMarkers() {
         if (!mapMarkers) return;
         mapMarkers.clearLayers();
-        allFeedItems.forEach(item => {
+        // Feed items first — they carry real usernames; panned-in extras fill the rest
+        const plotted = new Set();
+        const items = [...allFeedItems, ...extraMapItems.values()].filter(item => {
+            if (plotted.has(item.id)) return false;
+            plotted.add(item.id);
+            return true;
+        });
+        items.forEach(item => {
             const lat = item.loc && item.loc.latitude;
             const lng = item.loc && item.loc.longitude;
             if (lat == null || lng == null) return;
