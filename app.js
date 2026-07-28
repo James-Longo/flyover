@@ -56,6 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
         window.ebird.setApiKey(savedKey);
         if (logoutBtn) logoutBtn.style.display = 'block';
         if (ebirdConnectCard) ebirdConnectCard.style.display = 'none';
+    } else {
+        // Mobile hides the sidebar; this class lets the connect card
+        // punch through so phones aren't stuck iNat-only with no way in
+        document.body.classList.add('no-ebird-key');
     }
 
     // Auto-start detection

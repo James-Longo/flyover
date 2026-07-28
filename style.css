@@ -1084,3 +1084,16 @@ input:focus {
     font-weight: 600;
     color: var(--text-muted);
 }
+
+/* Phones hide the sidebar, but the eBird connect card must stay reachable
+   when no API key is stored — otherwise mobile can never enable eBird. */
+@media (max-width: 768px) {
+    body.no-ebird-key .sidebar.left {
+        display: block;
+        margin-bottom: 1rem;
+    }
+
+    body.no-ebird-key .ebird-attribution {
+        display: none;
+    }
+}
