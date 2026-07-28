@@ -972,29 +972,63 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /**
+     * eBird's geo endpoint only takes a circle (max 50 km radius), which can't
+     * cover a tall or wide viewport from a single center — the edges of the
+     * screen would never get data. Tile the viewport with just enough circles.
+     */
+    function ebirdCoverageCircles(bounds) {
+        const MAX_KM = 50;
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+        const c = bounds.getCenter();
+        const heightKm = map.distance([sw.lat, c.lng], [ne.lat, c.lng]) / 1000;
+        const widthKm = map.distance([c.lat, sw.lng], [c.lat, ne.lng]) / 1000;
+
+        // Rows/cols so each cell's half-diagonal fits in one 50 km circle;
+        // capped so a single pan never fires more than ~6 eBird requests
+        const rows = Math.min(3, Math.max(1, Math.ceil(heightKm / (MAX_KM * 1.4))));
+        const cols = Math.min(2, Math.max(1, Math.ceil(widthKm / (MAX_KM * 1.4))));
+
+        const circles = [];
+        const cellCornerKm = Math.hypot(heightKm / rows, widthKm / cols) / 2;
+        const dist = Math.max(1, Math.min(MAX_KM, Math.ceil(cellCornerKm) + 1));
+        for (let r = 0; r < rows; r++) {
+            for (let col = 0; col < cols; col++) {
+                circles.push({
+                    lat: sw.lat + (ne.lat - sw.lat) * (r + 0.5) / rows,
+                    lng: sw.lng + (ne.lng - sw.lng) * (col + 0.5) / cols,
+                    dist
+                });
+            }
+        }
+        return circles;
+    }
+
     async function fetchVisibleSightings() {
         if (!map) return;
         const seq = ++mapFetchSeq;
-        const center = map.getCenter();
         const bounds = map.getBounds();
-        // Radius (km) from center to a corner; eBird caps dist at 50 km
-        const cornerKm = Math.ceil(center.distanceTo(bounds.getNorthEast()) / 1000);
-        const radiusKm = Math.max(1, Math.min(50, cornerKm));
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
         const hasKey = !!localStorage.getItem('ebird_api_key');
 
         if (mapLoadingEl) mapLoadingEl.style.display = 'block';
         try {
-            const [ebirdObs, inatObs] = await Promise.all([
-                hasKey
-                    ? window.ebird.getNearbyObservations(center.lat, center.lng, radiusKm, 7)
-                        .catch(err => { console.warn("Map eBird fetch failed:", err); return []; })
-                    : Promise.resolve([]),
-                window.inat.fetchObservations(center.lat, center.lng, radiusKm, null)
-                    .catch(err => { console.warn("Map iNat fetch failed:", err); return []; })
-            ]);
+            const ebirdPromises = hasKey
+                ? ebirdCoverageCircles(bounds).map(c =>
+                    window.ebird.getNearbyObservations(c.lat, c.lng, c.dist, 7)
+                        .catch(err => { console.warn("Map eBird fetch failed:", err); return []; }))
+                : [];
+            const inatPromise = window.inat.fetchObservationsInBounds(sw.lat, sw.lng, ne.lat, ne.lng)
+                .catch(err => { console.warn("Map iNat fetch failed:", err); return []; });
+
+            const [inatObs, ...ebirdResults] = await Promise.all([inatPromise, ...ebirdPromises]);
             if (seq !== mapFetchSeq) return; // superseded by a newer pan
 
-            groupEbirdObservations(ebirdObs).forEach(item => {
+            // Overlapping circles can return the same observation twice;
+            // groupEbirdObservations collapses them by checklist id
+            groupEbirdObservations(ebirdResults.flat()).forEach(item => {
                 if (!extraMapItems.has(item.id)) extraMapItems.set(item.id, item);
             });
             groupInatObservations(inatObs).forEach(item => {

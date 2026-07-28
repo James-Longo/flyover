@@ -347,6 +347,28 @@ class InaturalistService {
         };
     }
 
+    /**
+     * Fetch observations within an exact bounding box (used by the map,
+     * which knows its viewport shape — a radius circle doesn't cover it)
+     */
+    async fetchObservationsInBounds(swlat, swlng, nelat, nelng) {
+        const url = new URL(`${INAT_BASE_URL}/observations`);
+        url.searchParams.append('swlat', swlat);
+        url.searchParams.append('swlng', swlng);
+        url.searchParams.append('nelat', nelat);
+        url.searchParams.append('nelng', nelng);
+        url.searchParams.append('per_page', 100);
+        url.searchParams.append('order_by', 'observed_on');
+        url.searchParams.append('order', 'desc');
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`iNaturalist API error: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return data.results.map(obs => this.normalize(obs));
+    }
+
     async getDailyStats(lat, lng, radius = 20) {
         const url = new URL(`${INAT_BASE_URL}/observations/species_counts`);
         url.searchParams.append('lat', lat);
